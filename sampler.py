@@ -81,6 +81,7 @@ class Sampler:
         mel, flips = self.hamiltonian.find_conn(self.state)
 
         for i in range(len(flips)):
+            if i == None: pass
             en += self.wf.pop(self.state, flips[i]) * mel[i]
 
         self.energy.append(en)

@@ -31,11 +31,12 @@ class Nqs:
     # Look-up table sare used for speed; the vector flips tells us which are flipped
 
     def log_pop(self, state, flips):
-        if len(flips) == 0:  # No flips? We out
+        if len(flips) == 0 or flips == [None]:  # No flips? We out
             return 0
 
-        if not np.any(flips - flips[0]):  # If it's this one that means no flips
-            return 0
+        if len(flips) == 2:
+            if not np.any(flips - flips[0]):  # If it's this one that means no flips
+                return 0
 
         logpop = 0 + 0j  # Initialize the variable
 
