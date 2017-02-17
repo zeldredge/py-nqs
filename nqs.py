@@ -26,7 +26,7 @@ class Nqs:
         # outer sum is over all h (each cosh in the product)
         #rbm = rbm + sum([lncosh(sum([self.b[h] + self.W[v][h] * state[v] for v in range(self.nv)]))
         #                for h in range(self.nh)])
-        rbm += np.sum(lncosh(self.b + np.dot(self.v, self.W)))
+        rbm += np.sum(np.log(np.cosh((self.b + np.dot(self.v, self.W)))))
 
         return rbm
 
@@ -50,7 +50,8 @@ class Nqs:
         # logpop = logpop - sum([self.a[flip] * 2.0 * state[flip] for flip in flips])
         logpop -= 2 * np.dot(self.a[flips], state[flips])
         # This is the change due to the interaction weights
-        logpop = logpop + np.sum(lncosh(self.Lt - 2 * np.dot(state[flips], self.W[flips])) - lncosh(self.Lt))
+        logpop += np.sum(np.log(np.cosh((self.Lt - 2 * np.dot(state[flips], self.W[flips]))))
+                         - np.log(np.cosh(self.Lt)))
 
         return logpop
 
