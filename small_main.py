@@ -5,11 +5,11 @@ import heisenberg2d
 import ising1d
 import sys
 
-nruns = 100
+nruns = 1000
 
-wf = nqs.Nqs("./Ground/Ising1d_40_1_1.wf")
-#h = heisenberg2d.Heisenberg2d(100, 1, 10)
-h = ising1d.Ising1d(40,1)
+wf = nqs.Nqs("./Ground/Heisenberg1d_40_1_1.wf")
+h = heisenberg1d.Heisenberg1d(40, 1)
+#h = ising1d.Ising1d(40,1)
 s = sampler.Sampler(wf, h)
 
 s.run(nruns)

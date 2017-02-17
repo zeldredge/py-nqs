@@ -34,7 +34,10 @@ class Nqs:
     # Look-up tables are used for speed; the vector flips tells us which are flipped
 
     def log_pop(self, state, flips):
-        if len(flips) == 0 or flips == [None]:  # No flips? We out
+        if len(flips) == 0:  # No flips? We out
+            return 0
+
+        if len(flips) == 1 and flips == [None]:
             return 0
 
         if len(flips) == 2:
@@ -47,7 +50,7 @@ class Nqs:
         # logpop = logpop - sum([self.a[flip] * 2.0 * state[flip] for flip in flips])
         logpop -= 2 * np.dot(self.a[flips], state[flips])
         # This is the change due to the interaction weights
-        logpop = logpop + lncosh(self.Lt - 2 * np.dot(state[flips], self.W[flips])) - lncosh(self.Lt)
+        logpop = logpop + np.sum(lncosh(self.Lt - 2 * np.dot(state[flips], self.W[flips])) - lncosh(self.Lt))
 
         return logpop
 
@@ -56,16 +59,16 @@ class Nqs:
 
     def init_lt(self, state):  # Initialize lookup tables
         self.Lt = np.zeros(self.nh)  # See eqn C7
-        self.Lt = self.b + np.dot(self.v, self.W)
+        self.Lt = self.b + np.dot(state, self.W)
         # self.Lt = [self.b[h] + sum([self.W[v][h] * state[v] for v in range(self.nv)]) for h in range(self.nh)]
         return None
 
     def update_lt(self, state, flips):  # Update lookup tables after flips
         if len(flips) == 0:  # Again, if no flips, leave
             return None
-        for h in range(self.nh):
+        #for h in range(self.nh):
             #self.Lt[h] -= sum([2 * state[flip] * self.W[flip][h] for flip in flips])
-            self.Lt -= np.sum(2 * state[flips] * self.W[flips])
+        self.Lt -= 2 * np.dot(state[flips], self.W[flips])
         return None
 
     def load_parameters(self, filename):
