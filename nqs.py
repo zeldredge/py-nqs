@@ -26,7 +26,7 @@ class Nqs:
         # outer sum is over all h (each cosh in the product)
         #rbm = rbm + sum([lncosh(sum([self.b[h] + self.W[v][h] * state[v] for v in range(self.nv)]))
         #                for h in range(self.nh)])
-        rbm += np.sum(np.log(np.cosh((self.b + np.dot(self.v, self.W)))))
+        rbm += np.sum(np.log(np.cosh((self.b + np.dot(state, self.W)))))
 
         return rbm
 
