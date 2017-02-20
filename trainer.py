@@ -9,29 +9,29 @@ class Trainer:
         self.reg_list = reg_list  # Parameters for regularization
         self.step_count = 0
 
-    def update_vector(self, wf, state, batch_size, gamma):  # Get the vector of updates
+    def update_vector(self, wf, state, batch_size, gamma, therm=False):  # Get the vector of updates
         samp = sampler.Sampler(wf, self.h)  # start a sampler
         samp.nflips = self.h.minflips
         samp.state = state
+        if therm == True:
+            samp.thermalize(batch_size)
 
         elocals = np.zeros(batch_size, dtype=complex)  # Elocal results at each sample
         deriv_vectors = np.zeros((batch_size, wf.nh + wf.nv + wf.nh*wf.nv), dtype=complex)
 
         for sample in range(batch_size):
-            samp.reset_av()  # reset whether we have accepted a move
-            while samp.accepted == 0:  # until we find a good spin
-                samp.move()
-            elocals[sample] = self.get_elocal(samp.state, wf)
-            deriv_vectors[sample] = self.get_deriv_vector(samp.state, wf)
+            samp.move()
+            elocals[sample] = self.get_elocal(samp.state, samp.wf)
+            deriv_vectors[sample] = self.get_deriv_vector(samp.state, samp.wf)
 
         # Now that we have all the data from sampling let's run our statistics
         cov = self.get_covariance(deriv_vectors)
         forces = self.get_forces(elocals, deriv_vectors)
 
         # Now we calculate the updates as
-        updates = gamma * np.dot(np.linalg.pinv(cov), forces)
-
-        return updates
+        updates = -gamma * np.dot(np.linalg.pinv(cov), forces)
+        self.step_count += batch_size
+        return deriv_vectors, elocals, forces, updates
 
     def get_elocal(self, state, wf):  # Function to calculate local energies; see equation A2 in Carleo and Troyer
         eloc = 0j  # Start with 0
@@ -48,7 +48,7 @@ class Trainer:
         # Third: The weights (wf.Nh * wf.Nv)
         # See Carleo C3-5 for formulas
 
-        vector = np.zeros(wf.nv + wf.nh + wf.nv * wf.nh,dtype=complex)  # initialize
+        vector = np.zeros(wf.nv + wf.nh + wf.nv * wf.nh, dtype=complex)  # initialize
 
         for bias in range(wf.nv):  # visible unit biases
             vector[bias] = state[bias]
@@ -71,6 +71,7 @@ class Trainer:
             outers.append(np.outer(np.conj(vec), vec))  # First term in A4
         mean_outer = np.mean(outers, axis=0)  # Get the mean outer product matrix
         smat = mean_outer - np.outer(np.conj(Omean), Omean)  # Eq A4
+        #smat += max(self.reg_list[0]*self.reg_list[1]**self.step_count, self.reg_list[2]) * np.diag(np.diag(smat))
         return smat
 
     def get_forces(self, elocals, deriv_vectors):

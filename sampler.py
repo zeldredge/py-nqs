@@ -132,6 +132,10 @@ class Sampler:
         print("Sweeping done. Acceptance rate was = {}".format(self.acceptance()))
         self.output_energy()
 
+    def thermalize(self,thermmoves):
+        for sweep in range(thermmoves):
+            self.move()
+
     def output_energy(self):
         nblocks = 50
         blocksize = math.floor(len(self.energy) / nblocks)
