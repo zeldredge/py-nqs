@@ -57,13 +57,10 @@ class Sampler:
     def move(self):
         if self.rand_spins():  # check if random spins is ok
             accept_prob = np.abs(self.wf.pop(self.state, self.flips)) ** 2  # acceptance probability of this flip
-
             if accept_prob > np.random.random():  # Metropolis-Hastings
                 self.wf.update_lt(self.state, self.flips)  # Update the wavefunction look-up tables
-
                 for flip in self.flips:  # Update the state in the sampler
                     self.state[flip] *= -1
-
                 self.accepted += 1  # Update count of accepted moves
 
         self.nmoves += 1  # Update count of moves

@@ -3,24 +3,42 @@ import sampler
 
 
 class Trainer:
-    def __init__(self, h, reg_list=(100, 0.9, 1e-4), mag0=True):
+    def __init__(self, h, reg_list=(100, 0.9, 1e-4)):
         self.h = h  # Hamiltonian to evaluate wf against
         self.nspins = h.nspins
         self.reg_list = reg_list  # Parameters for regularization
         self.step_count = 0
 
-    def update_vector(self, wf, state, batch_size, gamma, therm=False):  # Get the vector of updates
+    def train(self, wf, init_state, batch_size, num_steps, gamma):
+        state = init_state
+
+        for step in range(num_steps):
+            print("Running training step {}".format(step))
+            # First call the update_vector function to get our set of updates and the new state (so process thermalizes)
+            updates, state = self.update_vector(wf, init_state, batch_size, gamma)
+            print("Maximum value in the update vector: {}".format(max(updates)))
+            # Now apply appropriate parts of the update vector to wavefunction parameters
+            wf.a += updates[0:wf.nv]
+            wf.b += updates[wf.nv:wf.nh + wf.nv]
+            wf.W += np.reshape(updates[wf.nv + wf.nh:], (wf.nv, wf.nh))
+
+        return wf
+
+    def update_vector(self, wf, init_state, batch_size, gamma, therm=False):  # Get the vector of updates
         samp = sampler.Sampler(wf, self.h)  # start a sampler
         samp.nflips = self.h.minflips
-        samp.state = state
+        samp.state = np.copy(init_state)
+        samp.reset_av()
         if therm == True:
             samp.thermalize(batch_size)
-
+        scheck = np.copy(samp.state)
         elocals = np.zeros(batch_size, dtype=complex)  # Elocal results at each sample
-        deriv_vectors = np.zeros((batch_size, wf.nh + wf.nv + wf.nh*wf.nv), dtype=complex)
+        deriv_vectors = np.zeros((batch_size, wf.nh + wf.nv + wf.nh * wf.nv), dtype=complex)
+        states = []
 
         for sample in range(batch_size):
             samp.move()
+            states.append(samp.state)
             elocals[sample] = self.get_elocal(samp.state, samp.wf)
             deriv_vectors[sample] = self.get_deriv_vector(samp.state, samp.wf)
 
@@ -31,7 +49,7 @@ class Trainer:
         # Now we calculate the updates as
         updates = -gamma * np.dot(np.linalg.pinv(cov), forces)
         self.step_count += batch_size
-        return deriv_vectors, elocals, forces, updates
+        return updates, samp.state
 
     def get_elocal(self, state, wf):  # Function to calculate local energies; see equation A2 in Carleo and Troyer
         eloc = 0j  # Start with 0
@@ -53,8 +71,8 @@ class Trainer:
         for bias in range(wf.nv):  # visible unit biases
             vector[bias] = state[bias]
 
-        for bias in range(wf.nv, wf.nh):  # hidden unit biases
-            vector[bias] = np.tanh(wf.Lt[bias])
+        for bias in range(wf.nh):  # hidden unit biases
+            vector[wf.nv + bias] = np.tanh(wf.Lt[bias])
 
         for v in range(wf.nv):
             for h in range(wf.nh):
@@ -71,13 +89,13 @@ class Trainer:
             outers.append(np.outer(np.conj(vec), vec))  # First term in A4
         mean_outer = np.mean(outers, axis=0)  # Get the mean outer product matrix
         smat = mean_outer - np.outer(np.conj(Omean), Omean)  # Eq A4
-        #smat += max(self.reg_list[0]*self.reg_list[1]**self.step_count, self.reg_list[2]) * np.diag(np.diag(smat))
+        # smat += max(self.reg_list[0]*self.reg_list[1]**self.step_count, self.reg_list[2]) * np.diag(np.diag(smat))
         return smat
 
     def get_forces(self, elocals, deriv_vectors):
         emean = np.mean(elocals)  # mean local energy
         omean = np.mean(deriv_vectors, axis=0)  # mean derivative vector
-        correlator = np.mean([i[0] * np.conj(i[1]) for i in zip(elocals, deriv_vectors)])
+        correlator = np.mean([i[0] * np.conj(i[1]) for i in zip(elocals, deriv_vectors)], axis=0)
         # pair the local energies with Ovecs and then calculate mean
 
         return correlator - emean * np.conj(omean)
