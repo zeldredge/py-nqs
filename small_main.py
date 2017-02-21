@@ -13,7 +13,7 @@ base_array = np.concatenate(
 state = np.random.permutation(base_array)  # return a random permutation of the half 1, half-1 array
 wf.init_lt(state)
 t = trainer.Trainer(h)
-wf = t.train(wf,state,100,1,1)
+wf = t.train(wf,state,1000,1,10**-3)
 
 #h = ising1d.Ising1d(40,1)
 #s = sampler.Sampler(wf, h)

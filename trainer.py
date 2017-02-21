@@ -10,17 +10,17 @@ class Trainer:
         self.step_count = 0
 
     def train(self, wf, init_state, batch_size, num_steps, gamma):
-        state = init_state
 
         for step in range(num_steps):
             print("Running training step {}".format(step))
+            print("Largest value in wf lookup table: {}".format(max(wf.Lt)))
             # First call the update_vector function to get our set of updates and the new state (so process thermalizes)
             updates, state = self.update_vector(wf, init_state, batch_size, gamma)
             print("Maximum value in the update vector: {}".format(max(updates)))
             # Now apply appropriate parts of the update vector to wavefunction parameters
             wf.a += updates[0:wf.nv]
             wf.b += updates[wf.nv:wf.nh + wf.nv]
-            wf.W += np.reshape(updates[wf.nv + wf.nh:], (wf.nv, wf.nh))
+            wf.W += np.reshape(updates[wf.nv + wf.nh:], (wf.nh, wf.nv))
 
         return wf
 
@@ -31,7 +31,6 @@ class Trainer:
         samp.reset_av()
         if therm == True:
             samp.thermalize(batch_size)
-        scheck = np.copy(samp.state)
         elocals = np.zeros(batch_size, dtype=complex)  # Elocal results at each sample
         deriv_vectors = np.zeros((batch_size, wf.nh + wf.nv + wf.nh * wf.nv), dtype=complex)
         states = []
@@ -83,12 +82,12 @@ class Trainer:
     def get_covariance(self, deriv_vectors):
         # I'm writing this rather than using np.cov because I am not sure numpy handles complex values right
 
-        Omean = np.mean(deriv_vectors, axis=0)  # First get the mean O vector
-        outers = []  # empty list of outer product matrices
+        omean = np.mean(deriv_vectors, axis=0)  # First get the mean O vector
+        outers = np.zeros((deriv_vectors.shape[1],deriv_vectors.shape[1]), dtype=complex)  # empty list of outer product matrices
         for vec in deriv_vectors:
-            outers.append(np.outer(np.conj(vec), vec))  # First term in A4
-        mean_outer = np.mean(outers, axis=0)  # Get the mean outer product matrix
-        smat = mean_outer - np.outer(np.conj(Omean), Omean)  # Eq A4
+            outers += np.outer(np.conj(vec), vec) # First term in A4
+        mean_outer = outers/deriv_vectors.shape[0]  # Get the mean outer product matrix
+        smat = mean_outer - np.outer(np.conj(omean), omean)  # Eq A4
         # smat += max(self.reg_list[0]*self.reg_list[1]**self.step_count, self.reg_list[2]) * np.diag(np.diag(smat))
         return smat
 
