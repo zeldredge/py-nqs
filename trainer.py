@@ -10,17 +10,17 @@ class Trainer:
         self.step_count = 0
 
     def train(self, wf, init_state, batch_size, num_steps, gamma):
-
+        state = init_state
         for step in range(num_steps):
             print("Running training step {}".format(step))
             print("Largest value in wf lookup table: {}".format(max(wf.Lt)))
             # First call the update_vector function to get our set of updates and the new state (so process thermalizes)
-            updates, state = self.update_vector(wf, init_state, batch_size, gamma)
+            updates, state = self.update_vector(wf, state, batch_size, gamma)
             print("Maximum value in the update vector: {}".format(max(updates)))
             # Now apply appropriate parts of the update vector to wavefunction parameters
             wf.a += updates[0:wf.nv]
             wf.b += updates[wf.nv:wf.nh + wf.nv]
-            wf.W += np.reshape(updates[wf.nv + wf.nh:], (wf.nh, wf.nv))
+            wf.W += np.reshape(updates[wf.nv + wf.nh:], wf.W.shape)
 
         return wf
 
