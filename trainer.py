@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.sparse.linalg import cg
 import sampler
 
 
@@ -9,20 +10,22 @@ class Trainer:
         self.reg_list = reg_list  # Parameters for regularization
         self.step_count = 0
 
-    def train(self, wf, init_state, batch_size, num_steps, gamma):
+    def train(self, wf, init_state, batch_size, num_steps, gamma,printfreq = 25):
         state = init_state
+        elist = np.zeros(num_steps, dtype=complex) #list of energies to evaluate
         for step in range(num_steps):
-            print("Running training step {}".format(step))
-            print("Largest value in wf lookup table: {}".format(max(wf.Lt)))
             # First call the update_vector function to get our set of updates and the new state (so process thermalizes)
-            updates, state = self.update_vector(wf, state, batch_size, gamma)
-            print("Maximum value in the update vector: {}".format(max(updates)))
+            updates, state, elist[step] = self.update_vector(wf, state, batch_size, gamma)
             # Now apply appropriate parts of the update vector to wavefunction parameters
             wf.a += updates[0:wf.nv]
             wf.b += updates[wf.nv:wf.nh + wf.nv]
             wf.W += np.reshape(updates[wf.nv + wf.nh:], wf.W.shape)
 
-        return wf
+            if step % printfreq == 0:
+                print("Completed training step {}".format(step))
+                print("Current energy per spin: {}".format(elist[step]))
+
+        return wf, elist
 
     def update_vector(self, wf, init_state, batch_size, gamma, therm=False):  # Get the vector of updates
         samp = sampler.Sampler(wf, self.h)  # start a sampler
@@ -46,9 +49,11 @@ class Trainer:
         forces = self.get_forces(elocals, deriv_vectors)
 
         # Now we calculate the updates as
-        updates = -gamma * np.dot(np.linalg.pinv(cov), forces)
+        #updates = -gamma * np.dot(np.linalg.pinv(cov), forces)
+        vec, info = cg(cov, forces)
+        updates = -gamma*vec
         self.step_count += batch_size
-        return updates, samp.state
+        return updates, samp.state, np.mean(elocals)/self.nspins
 
     def get_elocal(self, state, wf):  # Function to calculate local energies; see equation A2 in Carleo and Troyer
         eloc = 0j  # Start with 0
@@ -98,3 +103,4 @@ class Trainer:
         # pair the local energies with Ovecs and then calculate mean
 
         return correlator - emean * np.conj(omean)
+

@@ -4,12 +4,12 @@ import sampler
 import trainer
 import numpy as np
 
-nruns = 100
+nruns = 1000
 
 wf = nqs.Nqs("./Ground/Heisenberg1d_40_1_1.wf")
 np.random.seed(5291992)
 r = np.random.random(wf.W.shape)
-wf.W = 0*wf.W + 0.1*r
+wf.W = 0*wf.W + 0.01*r
 
 
 h = heisenberg1d.Heisenberg1d(40, 1)
@@ -25,7 +25,7 @@ state = s.state
 wf.init_lt(state)
 
 t = trainer.Trainer(h)
-wf = t.train(wf,state,10000,5,10**-3)
+wf, elist = t.train(wf,state,1000,100,10**-2)
 
 #h = ising1d.Ising1d(40,1)
 s = sampler.Sampler(wf, h)
