@@ -88,11 +88,13 @@ class Trainer:
         # I'm writing this rather than using np.cov because I am not sure numpy handles complex values right
 
         omean = np.mean(deriv_vectors, axis=0)  # First get the mean O vector
-        outers = np.zeros((deriv_vectors.shape[1],deriv_vectors.shape[1]), dtype=complex)  # empty list of outer product matrices
+        outers = np.zeros((deriv_vectors.shape[1],deriv_vectors.shape[1]), dtype=complex)# empty list of outer product matrices
+        outer_shape = np.empty([deriv_vectors.shape[1], deriv_vectors.shape[1]],dtype=complex)
+        omean_outer_shape = np.empty([omean.shape[0], omean.shape[0]], dtype=complex)
         for vec in deriv_vectors:
-            outers += np.outer(np.conj(vec), vec) # First term in A4
+            outers += np.outer(np.conj(vec), vec, outer_shape) # First term in A4
         mean_outer = outers/deriv_vectors.shape[0]  # Get the mean outer product matrix
-        smat = mean_outer - np.outer(np.conj(omean), omean)  # Eq A4
+        smat = mean_outer - np.outer(np.conj(omean), omean, omean_outer_shape)  # Eq A4
         # smat += max(self.reg_list[0]*self.reg_list[1]**self.step_count, self.reg_list[2]) * np.diag(np.diag(smat))
         return smat
 
