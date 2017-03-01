@@ -72,7 +72,7 @@ class Nqs:
         self.Lt -= 2 * np.dot(state[flips], self.W[flips])
         return None
 
-    def load_parameters(self, filename):
+    def load_parameters_c(self, filename):
         with open(filename, 'r') as f:
             self.nv = int(f.readline())
             self.nh = int(f.readline())
@@ -84,6 +84,17 @@ class Nqs:
 
             print("NQS loaded from file: {}".format(filename))
             print("N_visbile = {0}      N_hidden = {1}".format(self.nv, self.nh))
+
+    def load_parameters(self, filename):
+        temp_file = np.load(filename)
+        self.a = temp_file('a')
+        self.b = temp_file('b')
+        self.W = temp_file('W')
+        self.nv = len(self.a)
+        self.nh = len(self.b)
+
+    def save_parameters(self, filename):
+        np.savez(filename, a=self.a, b=self.b, W=self.W)
 
     def nspins(self):  # This function exists for some reason, and I don't want to break anything
         return self.nv
