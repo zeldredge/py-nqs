@@ -10,7 +10,7 @@ class Trainer:
         self.reg_list = reg_list  # Parameters for regularization
         self.step_count = 0
 
-    def train(self, wf, init_state, batch_size, num_steps, gamma,printfreq = 25):
+    def train(self, wf, init_state, batch_size, num_steps, gamma,printfreq = 25,file = '', out_freq = 0):
         state = init_state
         elist = np.zeros(num_steps, dtype=complex) #list of energies to evaluate
         for step in range(num_steps):
@@ -24,6 +24,9 @@ class Trainer:
             if step % printfreq == 0:
                 print("Completed training step {}".format(step))
                 print("Current energy per spin: {}".format(elist[step]))
+
+            if out_freq > 0 and step % out_freq == 0:
+                wf.save_parameters(file+str(step))
 
         return wf, elist
 
