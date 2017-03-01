@@ -87,9 +87,9 @@ class Nqs:
 
     def load_parameters(self, filename):
         temp_file = np.load(filename)
-        self.a = temp_file('a')
-        self.b = temp_file('b')
-        self.W = temp_file('W')
+        self.a = temp_file['a']
+        self.b = temp_file['b']
+        self.W = temp_file['W']
         self.nv = len(self.a)
         self.nh = len(self.b)
 
