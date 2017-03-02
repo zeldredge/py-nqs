@@ -25,7 +25,7 @@ state = s.state
 wf.init_lt(state)
 
 t = trainer.Trainer(h)
-wf, elist = t.train(wf,state,10,100,10**-3, file='Outputs/test', out_freq=10)
+wf, elist = t.train(wf,state,1000,100,10**-3, file='Outputs/test', out_freq=0)
 
 #h = ising1d.Ising1d(40,1)
 s = sampler.Sampler(wf, h)
