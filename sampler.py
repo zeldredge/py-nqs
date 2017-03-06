@@ -3,7 +3,7 @@ from nqs import *
 
 
 class Sampler:
-    def __init__(self, wf, hamilt):
+    def __init__(self, wf, hamilt, quiet=True):
         # Input args:
         # wf: an instance of the nqs class holding the boltzmann machine
         # hamilt: a Hamiltonian (i.e., class that can return connected states)
@@ -19,6 +19,7 @@ class Sampler:
         self.state = np.ones(self.nspins)
         self.out = None  # eventually, file object
         self.nflips = 0
+        self.quiet = quiet
 
     def rand_spins(self, mag0=True):  # Random spin flips, current max is two
         # mag0 tells the program whether to keep total magnetization at zero or not
@@ -104,29 +105,35 @@ class Sampler:
         if nsweeps < 50:
             raise ValueError('Use more sweeps (>50)')
 
-        print("Starting Monte Carlo sampling, nsweeps = {}".format(nsweeps))
+        if not self.quiet:
+            print("Starting Monte Carlo sampling, nsweeps = {}".format(nsweeps))
 
         self.init_random_state()  # Get the random state
         self.wf.init_lt(self.state)  # Initialize the look-up tables
 
         self.reset_av()  # Reset variables
 
-        print("Beginning thermalization...")  # Thermalize
+        if not self.quiet:
+            print("Beginning thermalization...")  # Thermalize
         for thermsweep in range(math.floor(thermfactor * nsweeps)):
             for spinmove in range(sweepfactor * self.nspins):
                 self.move()
-        print("Thermalization done.")
+        if not self.quiet:
+            print("Thermalization done.")
 
         self.reset_av()
 
-        print("Sweeping...")  # Normal sweeps
+        if not self.quiet:
+            print("Sweeping...")  # Normal sweeps
         for sweep in range(nsweeps):
             for spinmove in range(sweepfactor * self.nspins):
                 self.move()
                 if self.writestates:
                     self.write_state()
             self.measure_energy()
-        print("Sweeping done. Acceptance rate was = {}".format(self.acceptance()))
+
+        if not self.quiet:
+            print("Sweeping done. Acceptance rate was = {}".format(self.acceptance()))
         self.output_energy()
 
     def thermalize(self,thermmoves):
@@ -164,6 +171,8 @@ class Sampler:
         esterror = esterror.real
 
         print("Estimated average energy per spin: {0} +/- {1}".format(estav, esterror))
-        print("Error estimated with binning analysis consisting of {0} bins".format(nblocks))
-        print("Block size is {}".format(blocksize))
-        print("Estimated autocorrelation time is {}".format(0.5 * blocksize * enmeansq / enmeansq_unblocked))
+
+        if not self.quiet:
+            print("Error estimated with binning analysis consisting of {0} bins".format(nblocks))
+            print("Block size is {}".format(blocksize))
+            print("Estimated autocorrelation time is {}".format(0.5 * blocksize * enmeansq / enmeansq_unblocked))

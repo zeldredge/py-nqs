@@ -24,8 +24,11 @@ s.run(nruns)
 state = s.state
 wf.init_lt(state)
 
+def gamma_fun(p):
+    return 1.0/(100*(p + 1))
+
 t = trainer.Trainer(h)
-wf, elist = t.train(wf,state,1000,100,10**-3, file='Outputs/test', out_freq=0)
+wf, elist = t.train(wf,state,100,100,gamma_fun, file='Outputs/test', out_freq=0)
 
 #h = ising1d.Ising1d(40,1)
 s = sampler.Sampler(wf, h)

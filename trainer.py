@@ -2,7 +2,6 @@ import numpy as np
 from scipy.sparse.linalg import cg
 from scipy.sparse.linalg import LinearOperator
 import sampler
-import sys
 
 
 class Trainer:
@@ -12,18 +11,18 @@ class Trainer:
         self.reg_list = reg_list  # Parameters for regularization
         self.step_count = 0
 
-    def train(self, wf, init_state, batch_size, num_steps, gamma, printfreq=25, file='', out_freq=0):
+    def train(self, wf, init_state, batch_size, num_steps, gamma_fun, print_freq=25, file='', out_freq=0):
         state = init_state
         elist = np.zeros(num_steps, dtype=complex)  # list of energies to evaluate
         for step in range(num_steps):
             # First call the update_vector function to get our set of updates and the new state (so process thermalizes)
-            updates, state, elist[step] = self.update_vector(wf, state, batch_size, gamma)
+            updates, state, elist[step] = self.update_vector(wf, state, batch_size, gamma_fun(step),step)
             # Now apply appropriate parts of the update vector to wavefunction parameters
             wf.a += updates[0:wf.nv]
             wf.b += updates[wf.nv:wf.nh + wf.nv]
             wf.W += np.reshape(updates[wf.nv + wf.nh:], wf.W.shape)
 
-            if step % printfreq == 0:
+            if step % print_freq == 0:
                 print("Completed training step {}".format(step))
                 print("Current energy per spin: {}".format(elist[step]))
 
@@ -32,7 +31,7 @@ class Trainer:
 
         return wf, elist
 
-    def update_vector(self, wf, init_state, batch_size, gamma, therm=False):  # Get the vector of updates
+    def update_vector(self, wf, init_state, batch_size, gamma, step, therm=False):  # Get the vector of updates
         samp = sampler.Sampler(wf, self.h)  # start a sampler
         samp.nflips = self.h.minflips
         samp.state = np.copy(init_state)
@@ -52,7 +51,7 @@ class Trainer:
 
         # Now that we have all the data from sampling let's run our statistics
         #cov = self.get_covariance(deriv_vectors)
-        cov_operator = LinearOperator((nvar, nvar),dtype=complex,matvec=lambda v: self.cov_operator(v, deriv_vectors))
+        cov_operator = LinearOperator((nvar, nvar),dtype=complex,matvec=lambda v: self.cov_operator(v, deriv_vectors,step))
 
         forces = self.get_forces(elocals, deriv_vectors)
 
@@ -116,8 +115,9 @@ class Trainer:
 
         return correlator - emean * np.conj(omean)
 
-    def cov_operator(self, vec, deriv_vectors):  # Callable function for evaluating S*v
+    def cov_operator(self, vec, deriv_vectors, step):  # Callable function for evaluating S*v
         tvec = np.dot(deriv_vectors, vec)  # vector of t-values
         term1 = np.dot(deriv_vectors.T.conj(), tvec)/deriv_vectors.shape[0]
         term2 = np.mean(deriv_vectors, axis=0) * np.mean(tvec)
-        return term1 - term2
+        reg = max(self.reg_list[0]*self.reg_list[1]**step, self.reg_list[2])*vec
+        return term1 - term2 + reg
