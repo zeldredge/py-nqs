@@ -9,7 +9,7 @@ nruns = 1000
 wf = nqs.Nqs("./Ground/Heisenberg1d_40_1_1.npz")
 np.random.seed(5291992)
 r = np.random.random(wf.W.shape)
-wf.W = 0*wf.W + 0.01*r
+wf.W = wf.W + 0.00*r
 
 
 h = heisenberg1d.Heisenberg1d(40, 1)

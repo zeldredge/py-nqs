@@ -1,5 +1,6 @@
 import numpy as np
 from cmath import *
+from scipy.linalg import circulant
 
 
 class Nqs:
@@ -24,7 +25,7 @@ class Nqs:
         rbm = np.dot(self.a, state)
         # The two sums below: inner sum is over all v (each hidden unit accounts for all of its visible connections)
         # outer sum is over all h (each cosh in the product)
-        #rbm = rbm + sum([lncosh(sum([self.b[h] + self.W[v][h] * state[v] for v in range(self.nv)]))
+        # rbm = rbm + sum([lncosh(sum([self.b[h] + self.W[v][h] * state[v] for v in range(self.nv)]))
         #                for h in range(self.nh)])
         rbm += np.sum(np.log(np.cosh((self.b + np.dot(state, self.W)))))
 
@@ -67,8 +68,7 @@ class Nqs:
     def update_lt(self, state, flips):  # Update lookup tables after flips
         if len(flips) == 0:  # Again, if no flips, leave
             return None
-        #for h in range(self.nh):
-            #self.Lt[h] -= sum([2 * state[flip] * self.W[flip][h] for flip in flips])
+
         self.Lt -= 2 * np.dot(state[flips], self.W[flips])
         return None
 
@@ -78,7 +78,7 @@ class Nqs:
             self.nh = int(f.readline())
 
             self.a = np.array([ctopy_complex(f.readline()) for i in range(self.nv)])  # had to write a function to
-            # parse the C++ complex output, which is (real, imag)
+            # parse the C++ complex output, which is (real, imaginary)
             self.b = np.array([ctopy_complex(f.readline()) for i in range(self.nh)])
             self.W = np.array([[ctopy_complex(f.readline()) for i in range(self.nh)] for j in range(self.nv)])
 
@@ -99,6 +99,73 @@ class Nqs:
     def nspins(self):  # This function exists for some reason, and I don't want to break anything
         return self.nv
 
+class NqsSymmetric:
+    # WARNING: class not currently tested; do not use
+    def __init__(self, nspins, t_group, feature_density):
+        self.alpha = feature_density
+        self.t_group = t_group
+        self.nspins = nspins
+        self.group_size = t_group.shape[0]
+
+        self.W = np.empty((self.alpha, self.nspins))
+        self.a = np.empty(self.alpha)
+        self.b = np.empty(self.alpha)
+
+        self.Lt = np.empty(self.alpha * self.group_size)
+
+    def log_val(self, state):  # log amplitude in a particular state
+        self.init_Lt(state)
+        value = 0
+        value += np.sum(self.a * np.dot(self.t_group, state))
+        value += np.log(np.cosh(self.Lt))
+        return value
+
+    def init_Lt(self, state):
+        b_expanded = np.tile(self.b, self.group_size)
+        W_expanded = np.tile(self.W, self.group_size)
+        self.Lt = b_expanded + np.dot(W_expanded, np.dot(self.t_group, state))
+
+    def update_Lt(self, flips):
+        if len(flips) == 0:  # Again, if no flips, leave
+            return None
+
+        W_expanded = np.tile(self.W, self.group_size)
+        self.Lt -= 2 * np.dot(W_expanded, np.dot(self.t_group, flips))
+
+    def pop(self, flips):
+        return exp(self.log_pop(flips))
+
+    def log_pop(self, flips):
+
+        if np.all(flips == 0):
+            return 0
+        # For symmetrized version of the code, flips is a length-Nspins vector which will be 0 in most places and
+        # +/- 2 if there is a flip in a spot, so that the new spin vector S' = S + flips
+        # We use this because we aren't guaranteed the sparsity will survive symmetry operations
+
+        logpop = 0 + 0j  # Initialize the variable
+
+        # This is the change due to visible biases
+        logpop -= np.sum(self.a * np.dot(self.t_group, flips))
+
+        # This is the change due to weights
+        w_expanded = np.tile(self.W, self.group_size)
+        logpop -= np.log(np.cosh(self.Lt)) - np.log(np.cosh(self.Lt -
+                                                            2 * np.dot(w_expanded, np.dot(self.t_group, flips))))
+        return logpop
+
+    def load_parameters(self, filename):
+        temp_file = np.load(filename)
+        self.a = temp_file['a']
+        self.b = temp_file['b']
+        self.W = temp_file['W']
+        self.t_group = temp_file['t_group']
+        self.nv = len(self.a)
+        self.nh = len(self.b)
+
+    def save_parameters(self, filename):
+        np.savez(filename, a=self.a, b=self.b, W=self.W, t_group=self.t_group)
+
 
 def ctopy_complex(instring):
     coordinates = instring.translate({ord(c): None for c in '()\n'})  # strip out parentheses and newline
@@ -110,4 +177,3 @@ def ctopy_complex(instring):
 def lncosh(x):
     # I don't really understand why they write a more complicated function than this -- I think this should work though
     return np.log(np.cosh(x))
-
