@@ -44,7 +44,8 @@ class Trainer:
         states = []
 
         for sample in range(batch_size):
-            samp.move()
+            for i in range(samp.nspins):
+                samp.move()
             states.append(samp.state)
             elocals[sample] = self.get_elocal(samp.state, samp.wf)
             deriv_vectors[sample] = self.get_deriv_vector(samp.state, samp.wf)
