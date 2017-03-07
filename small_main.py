@@ -7,9 +7,9 @@ import numpy as np
 nruns = 1000
 
 wf = nqs.Nqs("./Ground/Heisenberg1d_40_1_1.npz")
-np.random.seed(5291992)
+np.random.seed(529299)
 r = np.random.random(wf.W.shape)
-wf.W = 0*wf.W + 0.01*r
+wf.W = wf.W*0 + 0.4*r
 
 
 h = heisenberg1d.Heisenberg1d(40, 1)
@@ -25,10 +25,10 @@ state = s.state
 wf.init_lt(state)
 
 def gamma_fun(p):
-    return 1.0/(100*(p + 1))
+    return 1e-3
 
 t = trainer.Trainer(h)
-wf, elist = t.train(wf,state,100,100,gamma_fun, file='Outputs/test', out_freq=0)
+wf, elist = t.train(wf,state,1000,101,gamma_fun, file='Outputs/test', out_freq=20)
 
 #h = ising1d.Ising1d(40,1)
 s = sampler.Sampler(wf, h)
