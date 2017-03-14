@@ -7,17 +7,12 @@ import numpy as np
 
 nruns = 1000
 
-np.random.seed(5291992)
+#n1 = nqs.Nqs("./Ground/Heisenberg1d_40_1_1.npz")  # a full, normal nqs without translation invariance
+wf = nqsti.NqsTI(40, 2)  # A translation invariant NQS instance
 
-n1 = nqs.Nqs("./Ground/Heisenberg1d_40_1_1.npz")  # a full, normal nqs without translation invariance
-wf = nqsti.NqsTI(n1.nv, 1)  # A translation invariant NQS instance
-
-wf.W = n1.W[0]  # Fill in with starting values
-wf.a = n1.a[0]
-wf.b = n1.b[0]
-
-r = np.random.random(wf.W.shape)
-wf.W = 0.01*r + 0.00*wf.W
+wf.W = 0.1*np.random.random(wf.W.shape) + 0j # Fill in with starting values
+wf.a = 0.1*np.random.uniform() + 0j
+wf.b = 0.1*np.random.random(wf.b.shape) + 0j
 
 h = heisenberg1d.Heisenberg1d(40, 1)
 base_array = np.concatenate(

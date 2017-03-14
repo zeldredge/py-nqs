@@ -6,18 +6,26 @@ class NqsTI:
         self.alpha = density
         self.nv = nv
 
-        self.W = np.empty((self.alpha, self.nv))
-        self.Wfull = np.array([np.roll(self.W, -f) for f in range(self.nv)])
-        self.a = 0
-        self.b = np.empty(self.alpha)
+        self.W = np.empty((self.alpha, self.nv),dtype=complex)
 
-        self.Lt = np.empty(self.alpha)
+        # First we take W and, for each feature, produce a matrix that twists it so we get one "unsymmetrized"
+        # weight matrix. Then we add concatenate the features to get the one big array we want
+        self.Wfull = np.array([np.array([np.roll(self.W[a], -f) for f in range(self.nv)]) for a in range(density)])
+        self.Wfull = np.concatenate(self.Wfull, axis=1)
+
+        self.a = 0
+        self.b = np.empty(self.alpha,dtype=complex)
+        # We use a similar scheme for b
+        self.bfull = np.concatenate(np.array([self.b[a]*np.ones(nv) for a in range(density)]))
+
+        # Note: I don't really need to establish these arrays here in the initialization per se
+        # But it helps you see what they WILL BE when there's actually something there and not np.empty
+        self.Lt = np.empty(self.alpha*self.nv,dtype=complex)
 
     def log_val(self, state):
-        # The linear algebra in TI case uses a single weight vector and dots it against a circulant matrix made of the
-        # state. Equivalent to applying W to every possible shift
+        # Refers to the existing look-up tables to get a value
         value = self.a * np.sum(state)
-        value += np.sum(np.log(np.cosh(self.b + np.dot(state, self.Wfull))))
+        value += np.sum(np.log(np.cosh(self.Lt)))
         return value
 
     def log_pop(self, state, flips):
@@ -48,8 +56,13 @@ class NqsTI:
         return np.exp(self.log_pop(state, flips))
 
     def init_lt(self, state):
-        self.Wfull = np.array([np.roll(self.W, -f) for f in range(self.nv)])
-        self.Lt = np.tile(self.b, self.nv) + np.dot(state, self.Wfull)
+
+        #Just as in init...
+        self.Wfull = np.array([np.array([np.roll(self.W[a], -f) for f in range(self.nv)]) for a in range(self.alpha)])
+        self.Wfull = np.concatenate(self.Wfull, axis=1)
+        self.bfull = np.concatenate(np.array([self.b[a] * np.ones(self.nv) for a in range(self.alpha)]))
+
+        self.Lt = self.bfull + np.dot(state, self.Wfull)
 
     def update_lt(self, state, flips):
         self.Lt -= 2 * np.dot(state[flips], self.Wfull[flips])
@@ -62,5 +75,5 @@ class NqsTI:
         self.Wfull = np.array([np.roll(self.W, -f) for f in range(self.nv)])
         (self.alpha, self.nv) = self.W.shape
 
-    def save_parameters(self,filename):
+    def save_parameters(self, filename):
         np.savez(filename, a=self.a, b=self.b, W=self.W)

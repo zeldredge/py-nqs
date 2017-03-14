@@ -91,7 +91,7 @@ class Trainer:
             #for a in range(wf.alpha):
             #    vector[wf.alpha + 1 + j*a + a] = np.sum(np.roll(state, -j)*np.tanh(wf.Lt))
         for j in range(wf.alpha*wf.nv):
-            vector[wf.alpha + 1 + j] = np.sum([state[(j-s) % wf.nv]*np.tanh(wf.Lt[s]) for s in range(wf.nv)])
+            vector[wf.alpha + 1 + j] = np.sum([state[(j-s) % wf.nv]*np.tanh(wf.Lt[s + wf.nv*(j // wf.nv)]) for s in range(wf.nv)])
 
         return vector
 
