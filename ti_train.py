@@ -1,16 +1,23 @@
 import heisenberg1d
 import nqs
+import nqsti
 import sampler
-import trainer
+import trainer_ti
 import numpy as np
 
 nruns = 1000
 
-wf = nqs.Nqs("./Ground/Heisenberg1d_40_1_1.npz")
 np.random.seed(5291992)
-r = np.random.random(wf.W.shape)
-wf.W = 0.01*r + 0.0*wf.W
 
+n1 = nqs.Nqs("./Ground/Heisenberg1d_40_1_1.npz")  # a full, normal nqs without translation invariance
+wf = nqsti.NqsTI(n1.nv, 1)  # A translation invariant NQS instance
+
+wf.W = n1.W[0]  # Fill in with starting values
+wf.a = n1.a[0]
+wf.b = n1.b[0]
+
+r = np.random.random(wf.W.shape)
+wf.W = 0.01*r + 0.00*wf.W
 
 h = heisenberg1d.Heisenberg1d(40, 1)
 base_array = np.concatenate(
@@ -27,8 +34,9 @@ wf.init_lt(state)
 def gamma_fun(p):
     return .01
 
-t = trainer.Trainer(h)
-wf, elist = t.train(wf,state,100,101,gamma_fun, file='Outputs/test', out_freq=0)
+t = trainer_ti.Trainer(h)
+
+wf, elist = t.train(wf,state,1000,101,gamma_fun, file='Outputs/test', out_freq=20)
 
 #h = ising1d.Ising1d(40,1)
 s = sampler.Sampler(wf, h)

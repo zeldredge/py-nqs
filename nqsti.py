@@ -7,6 +7,7 @@ class NqsTI:
         self.nv = nv
 
         self.W = np.empty((self.alpha, self.nv))
+        self.Wfull = np.array([np.roll(self.W, -f) for f in range(self.nv)])
         self.a = 0
         self.b = np.empty(self.alpha)
 
@@ -16,7 +17,7 @@ class NqsTI:
         # The linear algebra in TI case uses a single weight vector and dots it against a circulant matrix made of the
         # state. Equivalent to applying W to every possible shift
         value = self.a * np.sum(state)
-        value += np.sum(np.log(np.cosh(self.b + np.dot(circulant(state).T, self.W))))
+        value += np.sum(np.log(np.cosh(self.b + np.dot(state, self.Wfull))))
         return value
 
     def log_pop(self, state, flips):
@@ -34,13 +35,12 @@ class NqsTI:
         logpop = 0 + 0j
 
         # First, we take into account the change due to the visible bias
-        logpop += -np.sum(2 * state[flips] * self.a)
+        logpop += -2*self.a*np.sum(state[flips])
 
         # Changing a spin affects the hidden units interestingly, because of the translation invariance a flipped
         # spin "hits" every element of the weight vector. So we get a sum over W for each flip
-        longflips = [np.mod(flips + [i] * len(flips), self.nv) for i in range(self.nv)]
-        logpop += np.sum(np.log(np.cosh(self.Lt
-                                        - 2 * np.sum(state[longflips]*self.W[longflips], axis=1))) - np.log(np.cosh(self.Lt)))
+        logpop += np.sum(np.log(np.cosh(self.Lt - 2 * np.dot(state[flips], self.Wfull[flips])))
+                         - np.log(np.cosh(self.Lt)))
 
         return logpop
 
@@ -48,17 +48,19 @@ class NqsTI:
         return np.exp(self.log_pop(state, flips))
 
     def init_lt(self, state):
-        self.Lt = self.b + np.dot(circulant(state).T, self.W)
+        self.Wfull = np.array([np.roll(self.W, -f) for f in range(self.nv)])
+        self.Lt = np.tile(self.b, self.nv) + np.dot(state, self.Wfull)
 
     def update_lt(self, state, flips):
-        self.Lt -= 2 * np.sum(state[flips]) * np.sum(self.W, axis=1)
+        self.Lt -= 2 * np.dot(state[flips], self.Wfull[flips])
 
     def load_parameters(self,filename):
         temp_file = np.load(filename)
         self.a = temp_file['a']
         self.b = temp_file['b']
         self.W = temp_file['W']
+        self.Wfull = np.array([np.roll(self.W, -f) for f in range(self.nv)])
         (self.alpha, self.nv) = self.W.shape
 
-    def save_paramaters(self,filename):
+    def save_parameters(self,filename):
         np.savez(filename, a=self.a, b=self.b, W=self.W)

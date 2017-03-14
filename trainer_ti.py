@@ -16,11 +16,11 @@ class Trainer:
         elist = np.zeros(num_steps, dtype=complex)  # list of energies to evaluate
         for step in range(num_steps):
             # First call the update_vector function to get our set of updates and the new state (so process thermalizes)
-            updates, state, elist[step] = self.update_vector(wf, state, batch_size, gamma_fun(step),step)
+            updates, state, elist[step] = self.update_vector(wf, state, batch_size, gamma_fun(step), step)
             # Now apply appropriate parts of the update vector to wavefunction parameters
-            wf.a += updates[0:wf.nv]
-            wf.b += updates[wf.nv:wf.nh + wf.nv]
-            wf.W += np.reshape(updates[wf.nv + wf.nh:], wf.W.shape)
+            wf.a += updates[0]
+            wf.b += updates[1:wf.alpha+1]
+            wf.W += updates[wf.alpha+1:].reshape(wf.W.shape)
 
             if step % print_freq == 0:
                 print("Completed training step {}".format(step))
@@ -37,7 +37,7 @@ class Trainer:
         samp.nflips = self.h.minflips
         samp.state = np.copy(init_state)
         samp.reset_av()
-        nvar = wf.nh + wf.nv + wf.nh * wf.nv
+        nvar = 1 + wf.alpha + wf.alpha * wf.nv
         if therm == True:
             samp.thermalize(batch_size)
         elocals = np.zeros(batch_size, dtype=complex)  # Elocal results at each sample
@@ -53,7 +53,8 @@ class Trainer:
 
         # Now that we have all the data from sampling let's run our statistics
         # cov = self.get_covariance(deriv_vectors)
-        cov_operator = LinearOperator((nvar, nvar),dtype=complex,matvec=lambda v: self.cov_operator(v, deriv_vectors,step))
+        cov_operator = LinearOperator((nvar, nvar), dtype=complex,
+                                      matvec=lambda v: self.cov_operator(v, deriv_vectors, step))
 
         forces = self.get_forces(elocals, deriv_vectors)
 
@@ -75,26 +76,29 @@ class Trainer:
 
     def get_deriv_vector(self, state, wf):
         # The derivative vector is a vector which contains the following elements in one column:
-        # First: derivative of psi(S) w.r.t. visible unit biases (wf.Nv of them)
-        # Second: the hidden unit biases (wf.Nh of them)
-        # Third: The weights (wf.Nh * wf.Nv)
+        # First: derivative of psi(S) w.r.t. visible unit biases (1 of them)
+        # Second: the hidden unit biases (wf.alpha of them)
+        # Third: The weights (wf.Nh * wf.alpha)
         # See Carleo C3-5 for formulas
 
-        vector = np.zeros(wf.nv + wf.nh + wf.nv * wf.nh, dtype=complex)  # initialize
+        vector = np.zeros(1 + wf.alpha + wf.nv * wf.alpha, dtype=complex)  # initialize
 
-        for bias in range(wf.nv):  # visible unit biases
-            vector[bias] = state[bias]
+        vector[0] = np.sum(state)
 
-        for bias in range(wf.nh):  # hidden unit biases
-            vector[wf.nv + bias] = np.tanh(wf.Lt[bias])
+        vector[1:wf.alpha+1] = np.sum(np.tanh(wf.Lt))
 
-        for v in range(wf.nv):
-            for h in range(wf.nh):
-                vector[wf.nh + wf.nv + wf.nh * v + h] = state[v] * np.tanh(wf.Lt[h])
+        #for j in range(wf.nv):
+            #for a in range(wf.alpha):
+            #    vector[wf.alpha + 1 + j*a + a] = np.sum(np.roll(state, -j)*np.tanh(wf.Lt))
+        for j in range(wf.alpha*wf.nv):
+            vector[wf.alpha + 1 + j] = np.sum([state[(j-s) % wf.nv]*np.tanh(wf.Lt[s]) for s in range(wf.nv)])
 
         return vector
 
     def get_covariance(self, deriv_vectors):
+
+        # DEPRECATED: Use covariance operator method for speed!
+
         # I'm writing this rather than using np.cov because I am not sure numpy handles complex values right
 
         omean = np.mean(deriv_vectors, axis=0)  # First get the mean O vector
@@ -119,7 +123,7 @@ class Trainer:
 
     def cov_operator(self, vec, deriv_vectors, step):  # Callable function for evaluating S*v
         tvec = np.dot(deriv_vectors, vec)  # vector of t-values
-        term1 = np.dot(deriv_vectors.T.conj(), tvec)/deriv_vectors.shape[0]
+        term1 = np.dot(deriv_vectors.T.conj(), tvec) / deriv_vectors.shape[0]
         term2 = np.mean(deriv_vectors, axis=0) * np.mean(tvec)
-        reg = max(self.reg_list[0]*self.reg_list[1]**step, self.reg_list[2])*vec
+        reg = max(self.reg_list[0] * self.reg_list[1] ** step, self.reg_list[2]) * vec
         return term1 - term2 + reg
