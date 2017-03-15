@@ -99,73 +99,6 @@ class Nqs:
     def nspins(self):  # This function exists for some reason, and I don't want to break anything
         return self.nv
 
-class NqsSymmetric:
-    # WARNING: class not currently tested; do not use
-    def __init__(self, nspins, t_group, feature_density):
-        self.alpha = feature_density
-        self.t_group = t_group
-        self.nspins = nspins
-        self.group_size = t_group.shape[0]
-
-        self.W = np.empty((self.alpha, self.nspins))
-        self.a = np.empty(self.alpha)
-        self.b = np.empty(self.alpha)
-
-        self.Lt = np.empty(self.alpha * self.group_size)
-
-    def log_val(self, state):  # log amplitude in a particular state
-        self.init_Lt(state)
-        value = 0
-        value += np.sum(self.a * np.dot(self.t_group, state))
-        value += np.log(np.cosh(self.Lt))
-        return value
-
-    def init_Lt(self, state):
-        b_expanded = np.tile(self.b, self.group_size)
-        W_expanded = np.tile(self.W, self.group_size)
-        self.Lt = b_expanded + np.dot(W_expanded, np.dot(self.t_group, state))
-
-    def update_Lt(self, flips):
-        if len(flips) == 0:  # Again, if no flips, leave
-            return None
-
-        W_expanded = np.tile(self.W, self.group_size)
-        self.Lt -= 2 * np.dot(W_expanded, np.dot(self.t_group, flips))
-
-    def pop(self, flips):
-        return exp(self.log_pop(flips))
-
-    def log_pop(self, flips):
-
-        if np.all(flips == 0):
-            return 0
-        # For symmetrized version of the code, flips is a length-Nspins vector which will be 0 in most places and
-        # +/- 2 if there is a flip in a spot, so that the new spin vector S' = S + flips
-        # We use this because we aren't guaranteed the sparsity will survive symmetry operations
-
-        logpop = 0 + 0j  # Initialize the variable
-
-        # This is the change due to visible biases
-        logpop -= np.sum(self.a * np.dot(self.t_group, flips))
-
-        # This is the change due to weights
-        w_expanded = np.tile(self.W, self.group_size)
-        logpop -= np.log(np.cosh(self.Lt)) - np.log(np.cosh(self.Lt -
-                                                            2 * np.dot(w_expanded, np.dot(self.t_group, flips))))
-        return logpop
-
-    def load_parameters(self, filename):
-        temp_file = np.load(filename)
-        self.a = temp_file['a']
-        self.b = temp_file['b']
-        self.W = temp_file['W']
-        self.t_group = temp_file['t_group']
-        self.nv = len(self.a)
-        self.nh = len(self.b)
-
-    def save_parameters(self, filename):
-        np.savez(filename, a=self.a, b=self.b, W=self.W, t_group=self.t_group)
-
 
 class NqsTI:
     # Dedicated class for translation-invariant neural networks
@@ -251,6 +184,95 @@ class NqsTI:
     def save_parameters(self, filename):
         np.savez(filename, a=self.a, b=self.b, W=self.W)
 
+
+class NqsSymmetric:
+    # Dedicated class for arbitrary-symmetric neural networks
+    def __init__(self, nv, density, group):
+        # Initialize by providing the number of physical variables (spins), the hidden unit density,
+        # and the set of transformations you want the NN to be symmetric under
+        self.alpha = density
+        self.nv = nv
+        self.t_group = group
+        self.t_size = group.shape[0] #number of transformations
+
+        self.W = np.zeros((self.alpha, self.nv), dtype=complex)
+        # W is all the weights; for each feature there is a vector describing its weights
+
+        # First we take W and, for each feature, produce a matrix that twists it so we get one "unsymmetrized"
+        # weight matrix. Then we add concatenate the features to get the one big array we want
+        self.Wfull = np.array([np.array([np.dot(t, self.W[a]) for t in self.t_group]) for a in range(self.alpha)])
+        self.Wfull = np.concatenate(self.Wfull, axis=1)
+
+        self.a = np.zeros(nv//self.t_size)  # Every available symmetry cuts the number of visible neurons
+        self.b = np.zeros(self.alpha, dtype=complex) # One bias per feature
+        # We use a similar scheme for b
+        self.bfull = np.concatenate(np.array([self.b[a]*np.ones(nv) for a in range(density)]))
+
+        # Note: I don't really need to establish these arrays here in the initialization per se
+        # But it helps you see what they WILL BE when there's actually something there and not np.zeros
+        self.Lt = np.zeros(self.alpha*self.nv, dtype=complex)
+
+    def log_val(self, state):
+        # Refers to the existing look-up tables to get a value
+        value = self.a * np.sum(state)
+        value += np.sum(np.log(np.cosh(self.Lt)))
+        return value
+
+    def log_pop(self, state, flips):
+        # Log of Psi'/Psi when we start in state Psi and flip the spins identified by index in list flips
+        if len(flips) == 0:  # No flips? We out
+            return 0
+
+        if len(flips) == 1 and flips == [None]:
+            return 0
+
+        if len(flips) == 2:
+            if not np.any(flips - flips[0]):  # If it's this one that means no flips
+                return 0
+
+        logpop = 0 + 0j
+
+        # First, we take into account the change due to the visible bias
+        logpop += -2*self.a*np.sum(state[flips])
+
+        # Since have constructed Wfull, we can basically use same code as we did in the non-symmetric case
+        logpop += np.sum(np.log(np.cosh(self.Lt - 2 * np.dot(state[flips], self.Wfull[flips])))
+                         - np.log(np.cosh(self.Lt)))
+
+        return logpop
+
+    def pop(self, state, flips):
+        return np.exp(self.log_pop(state, flips))
+
+    def init_lt(self, state):
+
+        # Just as in init...
+        # We use the group to transform the W vectors, and then concatenate them on top of each other
+        # The result is one big matrix we can use to get the weights
+        self.Wfull = np.array([np.array([np.dot(t, self.W[a]) for t in self.t_group]) for a in range(self.alpha)])
+        self.Wfull = np.concatenate(self.Wfull, axis=1)
+
+        # Same principle for bfull
+        self.bfull = np.concatenate(np.array([self.b[a] * np.ones(self.nv) for a in range(self.alpha)]))
+
+        # One Wfull and bfull are constructed, other operations can proceed without knowing about the symmetry
+        self.Lt = self.bfull + np.dot(state, self.Wfull)
+
+    def update_lt(self, state, flips):
+        self.Lt -= 2 * np.dot(state[flips], self.Wfull[flips])
+
+    def load_parameters(self,filename):
+        temp_file = np.load(filename)
+        self.a = temp_file['a']
+        self.b = temp_file['b']
+        self.W = temp_file['W']
+        (self.alpha, self.nv) = self.W.shape
+        self.Wfull = np.array(np.array([np.dot(t, self.W[a]) for t in self.t_group]) for a in range(self.alpha))
+        self.Wfull = np.concatenate(self.Wfull, axis=1)
+        self.bfull = np.concatenate(np.array([self.b[a] * np.ones(self.nv) for a in range(self.alpha)]))
+
+    def save_parameters(self, filename):
+        np.savez(filename, a=self.a, b=self.b, W=self.W)
 
 def ctopy_complex(instring):
     coordinates = instring.translate({ord(c): None for c in '()\n'})  # strip out parentheses and newline

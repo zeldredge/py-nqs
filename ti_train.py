@@ -7,7 +7,7 @@ import numpy as np
 nruns = 1000
 
 #n1 = nqs.Nqs("./Ground/Heisenberg1d_40_1_1.npz")  # a full, normal nqs without translation invariance
-wf = nqs.NqsTI(40, 1)  # A translation invariant NQS instance
+wf = nqs.NqsTI(40, 2)  # A translation invariant NQS instance
 
 wf.W = 0.1*np.random.random(wf.W.shape) + 0j # Fill in with starting values
 wf.a = 0.1*np.random.uniform() + 0j
