@@ -16,7 +16,7 @@ class Trainer:
         elist = np.zeros(num_steps, dtype=complex)  # list of energies to evaluate
         for step in range(num_steps):
             # First call the update_vector function to get our set of updates and the new state (so process thermalizes)
-            updates, state, elist[step] = self.update_vector(wf, state, batch_size, gamma_fun(step),step)
+            updates, state, elist[step] = self.update_vector(wf, state, batch_size, gamma_fun(step), step)
             # Now apply appropriate parts of the update vector to wavefunction parameters
             wf.a += updates[0:wf.nv]
             wf.b += updates[wf.nv:wf.nh + wf.nv]
@@ -53,7 +53,8 @@ class Trainer:
 
         # Now that we have all the data from sampling let's run our statistics
         # cov = self.get_covariance(deriv_vectors)
-        cov_operator = LinearOperator((nvar, nvar),dtype=complex,matvec=lambda v: self.cov_operator(v, deriv_vectors,step))
+        cov_operator = LinearOperator((nvar, nvar), dtype=complex,
+                                      matvec=lambda v: self.cov_operator(v, deriv_vectors, step))
 
         forces = self.get_forces(elocals, deriv_vectors)
 
@@ -119,9 +120,9 @@ class Trainer:
 
     def cov_operator(self, vec, deriv_vectors, step):  # Callable function for evaluating S*v
         tvec = np.dot(deriv_vectors, vec)  # vector of t-values
-        term1 = np.dot(deriv_vectors.T.conj(), tvec)/deriv_vectors.shape[0]
+        term1 = np.dot(deriv_vectors.T.conj(), tvec) / deriv_vectors.shape[0]
         term2 = np.mean(deriv_vectors, axis=0) * np.mean(tvec)
-        reg = max(self.reg_list[0]*self.reg_list[1]**step, self.reg_list[2])*vec
+        reg = max(self.reg_list[0] * self.reg_list[1] ** step, self.reg_list[2]) * vec
         return term1 - term2 + reg
 
 
@@ -140,8 +141,8 @@ class TrainerTI:
             updates, state, elist[step] = self.update_vector(wf, state, batch_size, gamma_fun(step), step)
             # Now apply appropriate parts of the update vector to wavefunction parameters
             wf.a += updates[0]
-            wf.b += updates[1:wf.alpha+1]
-            wf.W += updates[wf.alpha+1:].reshape(wf.W.shape)
+            wf.b += updates[1:wf.alpha + 1]
+            wf.W += updates[wf.alpha + 1:].reshape(wf.W.shape)
 
             if step % print_freq == 0:
                 print("Completed training step {}".format(step))
@@ -207,13 +208,14 @@ class TrainerTI:
         vector[0] = np.sum(state)
 
         for a in range(wf.alpha):
-            vector[1 + a] = np.sum(np.tanh(wf.Lt[a*wf.nv:(a+1)*wf.nv]))
+            vector[1 + a] = np.sum(np.tanh(wf.Lt[a * wf.nv:(a + 1) * wf.nv]))
 
-        #for j in range(wf.nv):
-            #for a in range(wf.alpha):
+            # for j in range(wf.nv):
+            # for a in range(wf.alpha):
             #    vector[wf.alpha + 1 + j*a + a] = np.sum(np.roll(state, -j)*np.tanh(wf.Lt))
-        for j in range(wf.alpha*wf.nv):
-            vector[wf.alpha + 1 + j] = np.sum([state[(j-s) % wf.nv]*np.tanh(wf.Lt[s + wf.nv*(j // wf.nv)]) for s in range(wf.nv)])
+        for j in range(wf.alpha * wf.nv):
+            vector[wf.alpha + 1 + j] = np.sum(
+                [state[(j - s) % wf.nv] * np.tanh(wf.Lt[s + wf.nv * (j // wf.nv)]) for s in range(wf.nv)])
 
         return vector
 
@@ -334,16 +336,15 @@ class TrainerSymmetric:
             vector[a] = np.sum(np.dot(wf.t_group, state))
 
         for a in range(wf.b.size):
-            vector[wf.a.size + a] = np.sum(np.tanh(wf.Lt[a*wf.nv:(a+1)*wf.nv]))
+            vector[wf.a.size + a] = np.sum(np.tanh(wf.Lt[a * wf.nv:(a + 1) * wf.nv]))
 
         offset = wf.a.size + wf.b.size
 
-        for f in range(wf.alpha): # for each feature
-            vector[offset + f*wf.nv: offset + (f+1)*wf.nv] = np.dot(np.dot(state,wf.t_group).T,
-                                              np.tanh(wf.Lt[f*wf.nv:(f+1)*wf.nv]))
-           # for v in range(wf.nv):
-           #     vector[offset + f*wf.nv + v] = np.sum( np.array([ np.dot(state,wf.t_group[u])[v] * np.tanh(wf.Lt[f*wf.nv + u]) for u in range(wf.t_size)] ))
-
+        for f in range(wf.alpha):  # for each feature
+            vector[offset + f * wf.nv: offset + (f + 1) * wf.nv] = np.dot(np.dot(state, wf.t_group).T,
+                                                                          np.tanh(wf.Lt[f * wf.nv:(f + 1) * wf.nv]))
+            # for v in range(wf.nv):
+            #     vector[offset + f*wf.nv + v] = np.sum( np.array([ np.dot(state,wf.t_group[u])[v] * np.tanh(wf.Lt[f*wf.nv + u]) for u in range(wf.t_size)] ))
 
         return vector
 

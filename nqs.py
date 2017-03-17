@@ -274,6 +274,86 @@ class NqsSymmetric:
     def save_parameters(self, filename):
         np.savez(filename, a=self.a, b=self.b, W=self.W)
 
+class NqsLocal:
+    # Class for neural networks with the property that they are k-local
+    def __init__(self, nv, k, density):
+        self.nv = nv  # number of visible neurons/physical spins
+        self.k = k  # locality parameter
+        self.alpha = density  # hidden parameter density
+
+        # In this case, we store the weights as a dimension-3 array
+        # Dimension 1: The number of visible units, so W[i] is all weights associated with spin i
+        # Dimension 2: The density, so W[i][j] is the jth hidden neuron at site i
+        # Dimension 3: the weights themselves, so W[i][j][k] is the weight between the jth hidden neuron at i
+        # and the visible neuron at i + (k - locality)
+        # Periodic boundary conditions are assumed, i.e., site -1 is site N -- set the relevant W to 0's if undesired
+        self.W = np.zeros((self.nv, self.alpha, 2*self.k+1), dtype=complex)
+        self.b = np.zeros((self.nv,self.alpha), dtype=complex)  # Hidden unit biases -- organized like weights, no locality concerns
+        self.a = np.zeros(self.nv, dtype=complex)  # Visible unit biases
+        self.indices = np.arange(-self.k, self.k + 1)  # Indices to target (defining locality) -- useful later
+
+    def log_val(self,state):  # return the logarithm of the value of the wavefunction
+        self.init_lt(state)
+        value = 0
+        value += np.dot(self.a,state)
+        value += np.sum(np.log(np.cosh(self.Lt)))
+        return value
+
+    def init_lt(self, state):
+        self.Lt = np.zeros((self.nv,self.alpha), dtype=complex)
+
+        for v in range(self.nv):
+            self.Lt[v] = self.b[v] + np.dot(self.W[v], state[(self.indices + v) % self.nv])
+
+    def update_lt(self, state, flips):
+        for f in flips:
+            self.Lt[(f - self.k)*self.alpha:(f + self.k)*self.alpha] -= \
+                state[f]*np.sum(self.W[(f + self.indices) % self.nv, :, self.indices])
+
+    def log_pop(self, state, flips):
+        if len(flips) == 0:  # No flips? We out
+            return 0
+
+        if len(flips) == 1 and flips == [None]:
+            return 0
+
+        if len(flips) == 2:
+            if not np.any(flips - flips[0]):  # If it's this one that means no flips
+                return 0
+
+        logpop = 0 + 0j  # Initialize the variable
+
+        # This is the change due to visible biases
+        # logpop = logpop - sum([self.a[flip] * 2.0 * state[flip] for flip in flips])
+        logpop -= 2 * np.dot(self.a[flips], state[flips])
+        # This is the change due to the interaction weights
+        changes = np.zeros(self.Lt.shape,dtype=complex)
+        for f in flips:
+            for i in self.indices:
+                changes[f*self.alpha] -= \
+                    2 * state[f]*np.sum(self.W[(f+i) % self.nv, :, i])
+
+        logpop += np.sum(np.log(np.cosh((self.Lt + changes)))
+                         - np.log(np.cosh(self.Lt)))
+
+        return logpop
+
+    def pop(self, state, flips):
+        return np.exp(self.log_pop(state, flips))
+
+    def load_parameters(self, filename):
+        temp_file = np.load(filename)
+        self.a = temp_file['a']
+        self.b = temp_file['b']
+        self.W = temp_file['W']
+        (self.nv, self.alpha) = self.b.shape
+        self.k = (self.W.shape[2] - 1) // 2
+        self.indices = np.arange(-self.k, self.k + 1)
+
+    def save_parameters(self, filename):
+        np.savez(filename, a=self.a, b=self.b, W=self.W)
+
+
 def ctopy_complex(instring):
     coordinates = instring.translate({ord(c): None for c in '()\n'})  # strip out parentheses and newline
     coordinates = coordinates.split(",")  # split the coordinates into two strings at the comma
