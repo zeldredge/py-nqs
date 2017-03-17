@@ -307,8 +307,8 @@ class NqsLocal:
 
     def update_lt(self, state, flips):
         for f in flips:
-            self.Lt[(f - self.k)*self.alpha:(f + self.k)*self.alpha] -= \
-                state[f]*np.sum(self.W[(f + self.indices) % self.nv, :, self.indices])
+            for i in self.indices:
+                self.Lt[(f + i) % self.nv, :] -= 2*state[f]*self.W[(f + i) % self.nv, :, self.k - i]
 
     def log_pop(self, state, flips):
         if len(flips) == 0:  # No flips? We out
@@ -330,8 +330,7 @@ class NqsLocal:
         changes = np.zeros(self.Lt.shape,dtype=complex)
         for f in flips:
             for i in self.indices:
-                changes[f*self.alpha] -= \
-                    2 * state[f]*np.sum(self.W[(f+i) % self.nv, :, i])
+                changes[(f + i) % self.nv] -= 2*state[f]*self.W[(f + i) % self.nv, :, self.k - i]
 
         logpop += np.sum(np.log(np.cosh((self.Lt + changes)))
                          - np.log(np.cosh(self.Lt)))
