@@ -1,4 +1,5 @@
 import heisenberg1d
+import ising1d
 import nqs
 import sampler
 import trainer
@@ -6,13 +7,13 @@ import numpy as np
 
 nruns = 1000
 
-wf = nqs.Nqs("./Ground/Heisenberg1d_40_1_1.npz")
+wf = nqs.Nqs("./Ground/Ising1d_40_0.5_1.npz")
 np.random.seed(5291992)
 r = np.random.random(wf.W.shape)
-wf.W = 0.01*r + 0.0*wf.W
+#wf.W = 0.01*r + 0.0*wf.W
 
 
-h = heisenberg1d.Heisenberg1d(40, 1)
+h = ising1d.Ising1d(40, 0.5)
 base_array = np.concatenate(
                 (np.ones(int(20)), -1 * np.ones(int(20))))  # make an array of half 1, half -1
 state = np.random.permutation(base_array)  # return a random permutation of the half 1, half-1 array
