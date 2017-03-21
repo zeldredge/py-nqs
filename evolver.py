@@ -27,8 +27,8 @@ class Evolver:
         s.run(5000)
         init_state = s.state
 
-        wf, elist = t.train(wf, init_state, batch_size, ntsteps, self.gamma, print_freq=1,
-                            file='./Outputs/time_evol', out_freq=0)
+        wf, elist = t.train(wf, init_state, batch_size, ntsteps, self.gamma, print_freq=25,
+                            file='./Outputs/time_evol', out_freq=25)
 
         return wf
 

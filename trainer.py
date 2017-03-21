@@ -106,7 +106,7 @@ class Trainer:
     def cov_operator(self, vec, deriv_vectors, step):  # Callable function for evaluating S*v
         tvec = np.dot(deriv_vectors, vec)  # vector of t-values
         term1 = np.dot(deriv_vectors.T.conj(), tvec) / deriv_vectors.shape[0]
-        term2 = np.mean(deriv_vectors, axis=0) * np.mean(tvec)
+        term2 = np.mean(deriv_vectors.conj(), axis=0) * np.mean(tvec)
         reg = max(self.reg_list[0] * self.reg_list[1] ** step, self.reg_list[2]) * vec
         return term1 - term2 + reg
 
@@ -215,7 +215,7 @@ class TrainerTI:
     def cov_operator(self, vec, deriv_vectors, step):  # Callable function for evaluating S*v
         tvec = np.dot(deriv_vectors, vec)  # vector of t-values
         term1 = np.dot(deriv_vectors.T.conj(), tvec) / deriv_vectors.shape[0]
-        term2 = np.mean(deriv_vectors, axis=0) * np.mean(tvec)
+        term2 = np.mean(deriv_vectors.conj(), axis=0) * np.mean(tvec)
         reg = max(self.reg_list[0] * self.reg_list[1] ** step, self.reg_list[2]) * vec
         return term1 - term2 + reg
 
@@ -326,7 +326,7 @@ class TrainerSymmetric:
     def cov_operator(self, vec, deriv_vectors, step):  # Callable function for evaluating S*v
         tvec = np.dot(deriv_vectors, vec)  # vector of t-values
         term1 = np.dot(deriv_vectors.T.conj(), tvec) / deriv_vectors.shape[0]
-        term2 = np.mean(deriv_vectors, axis=0) * np.mean(tvec)
+        term2 = np.mean(deriv_vectors.conj(), axis=0) * np.mean(tvec)
         reg = max(self.reg_list[0] * self.reg_list[1] ** step, self.reg_list[2]) * vec
         return term1 - term2 + reg
 
@@ -450,6 +450,6 @@ class TrainerLocal:
     def cov_operator(self, vec, deriv_vectors, step):  # Callable function for evaluating S*v
         tvec = np.dot(deriv_vectors, vec)  # vector of t-values
         term1 = np.dot(deriv_vectors.T.conj(), tvec) / deriv_vectors.shape[0]
-        term2 = np.mean(deriv_vectors, axis=0) * np.mean(tvec)
+        term2 = np.mean(deriv_vectors.conj(), axis=0) * np.mean(tvec)
         reg = max(self.reg_list[0] * self.reg_list[1] ** step, self.reg_list[2]) * vec
         return term1 - term2 + reg
