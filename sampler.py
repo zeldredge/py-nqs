@@ -3,15 +3,15 @@ from nqs import *
 
 
 class Sampler:
-    def __init__(self, wf, hamilt, quiet=True):
+    def __init__(self, wf, op, quiet=True, opname ='energy'):
         # Input args:
         # wf: an instance of the nqs class holding the boltzmann machine
         # hamilt: a Hamiltonian (i.e., class that can return connected states)
         # nflips: number of flips to attempt each time we try to make a move
         self.wf = wf
         self.nspins = self.wf.nv
-        self.hamiltonian = hamilt
-        self.energy = []
+        self.operator = op
+        self.observable = []
         self.writestates = False
         self.flips = []
         self.nmoves = 0
@@ -20,6 +20,7 @@ class Sampler:
         self.out = None  # eventually, file object
         self.nflips = 0
         self.quiet = quiet
+        self.opname = opname
 
     def rand_spins(self, mag0=True):  # Random spin flips, current max is two
         # mag0 tells the program whether to keep total magnetization at zero or not
@@ -73,16 +74,16 @@ class Sampler:
     def write_state(self):
         self.out.write(self.state)
 
-    def measure_energy(self):
+    def measure_operator(self):
         en = 0 + 0j
 
-        mel, flips = self.hamiltonian.find_conn(self.state)
+        mel, flips = self.operator.find_conn(self.state)
 
         for i in range(len(flips)):
             if i == None: pass
             en += self.wf.pop(self.state, flips[i]) * mel[i]
 
-        self.energy.append(en)
+        self.observable.append(en)
 
     # Now, the function that runs the Monte Carlo sweeping
     # nsweeps = number of sweeps to do
@@ -93,7 +94,7 @@ class Sampler:
     def run(self, nsweeps, thermfactor=.1, sweepfactor=1, nflipss=-1):
         self.nflips = nflipss
         if self.nflips == -1:  # Fix the number of flips
-            self.nflips = self.hamiltonian.minflips
+            self.nflips = self.operator.minflips
 
         # Some input checks, same as Carleo ran
         if self.nflips not in [1, 2]:
@@ -130,7 +131,7 @@ class Sampler:
                 self.move()
                 if self.writestates:
                     self.write_state()
-            self.measure_energy()
+            self.measure_operator()
 
         if not self.quiet:
             print("Sweeping done. Acceptance rate was = {}".format(self.acceptance()))
@@ -142,7 +143,7 @@ class Sampler:
 
     def output_energy(self):
         nblocks = 50
-        blocksize = math.floor(len(self.energy) / nblocks)
+        blocksize = math.floor(len(self.observable) / nblocks)
         enmean = 0
         enmeansq = 0
         enmean_unblocked = 0
@@ -151,11 +152,11 @@ class Sampler:
         for i in range(nblocks):
             eblock = 0
             for j in range(i * blocksize, (i + 1) * blocksize):
-                eblock += self.energy[j].real
-                assert (j < len(self.energy))
-                delta = self.energy[j].real - enmean_unblocked
+                eblock += self.observable[j].real
+                assert (j < len(self.observable))
+                delta = self.observable[j].real - enmean_unblocked
                 enmean_unblocked += delta / (j + 1)
-                delta2 = self.energy[j].real - enmean_unblocked
+                delta2 = self.observable[j].real - enmean_unblocked
                 enmeansq_unblocked += delta * delta2
 
             eblock /= blocksize
@@ -169,10 +170,9 @@ class Sampler:
         estav = enmean / self.nspins
         esterror = sqrt(enmeansq / nblocks) / self.nspins
         esterror = esterror.real
-
-        print("Estimated average energy per spin: {0} +/- {1}".format(estav, esterror))
-
+        self.estav = estav
         if not self.quiet:
+            print("Estimated average " + self.opname +" per spin: {0} +/- {1}".format(estav, esterror))
             print("Error estimated with binning analysis consisting of {0} bins".format(nblocks))
             print("Block size is {}".format(blocksize))
             print("Estimated autocorrelation time is {}".format(0.5 * blocksize * enmeansq / enmeansq_unblocked))

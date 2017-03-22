@@ -346,7 +346,7 @@ class TrainerLocal:
             updates, state, elist[step] = self.update_vector(wf, state, batch_size, gamma_fun(step), step)
             # Now apply appropriate parts of the update vector to wavefunction parameters
             wf.a += updates[:wf.a.size]
-            wf.b += updates[wf.a.size:wf.a.size + wf.b.size]
+            wf.b += updates[wf.a.size:wf.a.size + wf.b.size].reshape(wf.b.shape)
             wf.W += updates[wf.a.size + wf.b.size:].reshape(wf.W.shape)
 
             if step % print_freq == 0:

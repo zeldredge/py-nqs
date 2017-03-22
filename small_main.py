@@ -1,36 +1,32 @@
+import nqs
+import numpy as np
+import sampler
 import heisenberg1d
 import ising1d
-import nqs
-import sampler
+import time
 import trainer
-import numpy as np
 
-nruns = 1000
+# Script to get and save local NQS solutions of the TFI h = 0.5 model
 
-wf = nqs.Nqs("./Ground/Ising1d_40_0.5_1.npz")
-np.random.seed(5291992)
-r = np.random.random(wf.W.shape)
-#wf.W = 0.01*r + 0.0*wf.W
+#we create the local NQS instance
 
+wf = nqs.NqsLocal(40, 2, 1)
+wf.W = 0.1 * np.random.random(wf.W.shape) + 0j  # Fill in with starting values
+wf.a = 0.1 * np.random.random(wf.a.shape) + 0j
+wf.b = 0.1 * np.random.random(wf.b.shape) + 0j
 
-h = ising1d.Ising1d(40, 0.5)
+# Now begin testing outputs
 base_array = np.concatenate(
                 (np.ones(int(20)), -1 * np.ones(int(20))))  # make an array of half 1, half -1
 state = np.random.permutation(base_array)  # return a random permutation of the half 1, half-1 array
+
 wf.init_lt(state)
 
-s = sampler.Sampler(wf, h)
-s.run(nruns)
-
-state = s.state
-wf.init_lt(state)
+h = ising1d.Ising1d(40, 0.5)
 
 def gamma_fun(p):
     return .01
 
-t = trainer.Trainer(h)
-wf, elist = t.train(wf,state,100,101,gamma_fun, file='Outputs/test', out_freq=0)
+t = trainer.TrainerLocal(h)
 
-#h = ising1d.Ising1d(40,1)
-s = sampler.Sampler(wf, h)
-s.run(nruns)
+wf, elist = t.train(wf, state, 1000, 201, gamma_fun, file='Outputs/Ising05_k=2_', out_freq=200)

@@ -2,6 +2,7 @@ import nqs
 import numpy as np
 import sampler
 import heisenberg1d
+import ising1d
 import time
 import trainer
 
@@ -20,10 +21,10 @@ n = n1.W.T
 
 # Now we create the local NQS instance
 
-n2 = nqs.NqsLocal(40,1,1)
+n2 = nqs.NqsLocal(40, 1, 1)
 n2.a = n1.a
 n2.b = n1.b
-indices = np.array([-1,0,1])
+indices = np.array([-1, 0, 1])
 for i in range(40):
     n2.W[i][0] = n[i][(i+indices) % n1.nv]
 
@@ -47,7 +48,7 @@ if not (lv_match and lp_match):
     exit()
 
 nruns = 1000
-h = heisenberg1d.Heisenberg1d(40, 1)
+h = ising1d.Ising1d(40, 0.5)
 
 print("Sampling n1 ...")
 
