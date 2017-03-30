@@ -56,11 +56,11 @@ def gamma_fun(p):
 
 print("Training n1...")
 t1 = trainer.TrainerTI(h)
-n1,elist = t1.train(n1,state,100,101,gamma_fun, file='Outputs/test', out_freq=20)
+n1,elist = t1.train(n1,state,100,101,gamma_fun, file='../Outputs/test', out_freq=20)
 
 print("Training n2...")
 t2 = trainer.TrainerSymmetric(h)
-n2,elist = t2.train(n2,state,100,101,gamma_fun, file='Outputs/test', out_freq=20)
+n2,elist = t2.train(n2,state,100,101,gamma_fun, file='../Outputs/test', out_freq=20)
 
 print("Testing training on density-2 symmetric case...")
 n2 = nqs.NqsSymmetric(40, 2, shift_group)
@@ -74,4 +74,4 @@ state = np.random.permutation(base_array)  # return a random permutation of the 
 
 n2.init_lt(state)
 
-n2,elist = t2.train(n2,state,100,101,gamma_fun, file='Outputs/test', out_freq=20)
+n2,elist = t2.train(n2,state,100,101,gamma_fun, file='../Outputs/test', out_freq=20)

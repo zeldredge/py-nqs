@@ -2,8 +2,9 @@ import nqs
 import numpy as np
 import sampler
 import heisenberg1d
+import ising1d
 import time
-from scipy.linalg import hankel
+import trainer
 
 density = 1
 n1 = nqs.NqsTI(40, density)  # A translation invariant NQS instance with alpha = 1
@@ -41,7 +42,7 @@ print("Log_val matches: {}".format(np.all(np.isclose(n1.log_val(state), n2.log_v
 print("Log_pop matches: {}".format(np.all(np.isclose(n1.log_pop(state, flips), n2.log_pop(state, flips)))))
 
 nruns = 1000
-h = heisenberg1d.Heisenberg1d(40, 1)
+h = ising1d.Ising1d(40, 0.5)
 
 print("Sampling n1 ...")
 
@@ -56,3 +57,9 @@ start_time = time.time()
 s2 = sampler.Sampler(n2, h)
 s2.run(nruns)
 print("time elapsed: {:.2f}s".format(time.time() - start_time))
+
+t = trainer.TrainerLocalTI(h)
+t2 = trainer.TrainerTI(h)
+
+n2, elist = t.train(n2,state,100,101,lambda p: .01, file='../Outputs/test', out_freq=0)
+n1, elist2 = t2.train(n1,state,100,101,lambda p: .01, file='../Outputs/test', out_freq=0)
