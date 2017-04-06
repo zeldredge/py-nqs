@@ -5,6 +5,7 @@ import heisenberg1d
 import ising1d
 import time
 import trainer
+import matplotlib.pyplot as plt
 
 density = 1
 n1 = nqs.NqsTI(40, density)  # A translation invariant NQS instance with alpha = 1
@@ -18,15 +19,15 @@ n1.b = 0.1*np.random.random(n1.b.shape) + 0j
 
 # Now we localize the TI NQS instance by creating the array (1, 1, 0, 0.... 1) and multiplying elementwise
 localizer = np.zeros(40)
-localizer[0:2] = 1
-localizer[-1] = 1
+localizer[0:n2.k] = 1
+localizer[-n2.k] = 1
 n1.W *= localizer
 
 # Now feed all the TI parameters to local TI NQS
 n2.a = n1.a
 n2.b = n1.b
 for a in range(density):
-    n2.Wloc[a] = n1.W[a][np.arange(-1,2)]
+    n2.Wloc[a] = n1.W[a][np.arange(-n2.k,n2.k+1)]
 
 # Now begin testing outputs
 base_array = np.concatenate(
@@ -42,24 +43,18 @@ print("Log_val matches: {}".format(np.all(np.isclose(n1.log_val(state), n2.log_v
 print("Log_pop matches: {}".format(np.all(np.isclose(n1.log_pop(state, flips), n2.log_pop(state, flips)))))
 
 nruns = 1000
-h = ising1d.Ising1d(40, 0.5)
+h = heisenberg1d.Heisenberg1d(40,1)
 
-print("Sampling n1 ...")
+print("\nSampling n1 ...")
 
 start_time = time.time()
-s1 = sampler.Sampler(n1, h)
+s1 = sampler.Sampler(n1, h, quiet = False)
 s1.run(nruns)
 print("time elapsed: {:.2f}s".format(time.time() - start_time))
 
-print("Sampling n2 ...")
+print("\nSampling n2 ...")
 
 start_time = time.time()
-s2 = sampler.Sampler(n2, h)
+s2 = sampler.Sampler(n2, h, quiet = False)
 s2.run(nruns)
 print("time elapsed: {:.2f}s".format(time.time() - start_time))
-
-t = trainer.TrainerLocalTI(h)
-t2 = trainer.TrainerTI(h)
-
-n2, elist = t.train(n2,state,100,101,lambda p: .01, file='../Outputs/test', out_freq=0)
-n1, elist2 = t2.train(n1,state,100,101,lambda p: .01, file='../Outputs/test', out_freq=0)

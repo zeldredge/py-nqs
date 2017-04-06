@@ -252,7 +252,7 @@ class TrainerLocalTI(Trainer):
 
         for a in range(wf.alpha):
             for j in range(-wf.k,wf.k+1):
-                vector[wf.alpha + 1 + a*wf.nv + j + wf.k] = np.sum(
+                vector[wf.alpha + 1 + a*locality_range + j + wf.k] = np.sum(
                     [state[(j - s) % wf.nv] * np.tanh(wf.Lt[s + wf.nv * a]) for s in range(wf.nv)])
 
         return vector
