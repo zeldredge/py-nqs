@@ -7,15 +7,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 nruns = 1000
-k = 4
+k = 1
 gam = .01
 #h = heisenberg1d.Heisenberg1d(40,1)
 h = ising1d.Ising1d(40,0.5)
 
-wf = nqs.NqsLocalTI(40, 1, k)  # A translation invariant NQS instance
+wf = nqs.NqsLocal(40, 1, k)  # A local NQS instance
 
-wf.Wloc = 0.1*np.random.random(wf.Wloc.shape) + 0j # Fill in with starting values
-wf.a = 0.1*np.random.uniform() + 0j
+wf.W = 0.1*np.random.random(wf.W.shape) + 0j # Fill in with starting values
+wf.a = 0.1*np.random.random(wf.a.shape) + 0j
 wf.b = 0.1*np.random.random(wf.b.shape) + 0j
 
 
@@ -33,11 +33,10 @@ wf.init_lt(state)
 def gamma_fun(p):
     return gam
 
-t = trainer.TrainerLocalTI(h)
+t = trainer.TrainerLocal(h)
 
 wf, elist = t.train(wf,state,100,101,gamma_fun, file='../Outputs/Ising1d05', out_freq=0)
 
-#h = ising1d.Ising1d(40,1)
 s = sampler.Sampler(wf, h)
 s.run(nruns)
 

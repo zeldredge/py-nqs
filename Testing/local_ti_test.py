@@ -8,8 +8,9 @@ import trainer
 import matplotlib.pyplot as plt
 
 density = 1
+k = 10
 n1 = nqs.NqsTI(40, density)  # A translation invariant NQS instance with alpha = 1
-n2 = nqs.NqsLocalTI(40, density, 1) # A local TI NQS instance with same alpha
+n2 = nqs.NqsLocalTI(40, density, k) # A local TI NQS instance with same alpha
 
 # Randomize the TI case
 n1.W = 0.1*np.random.random(n1.W.shape) + 0j
@@ -20,7 +21,7 @@ n1.b = 0.1*np.random.random(n1.b.shape) + 0j
 # Now we localize the TI NQS instance by creating the array (1, 1, 0, 0.... 1) and multiplying elementwise
 localizer = np.zeros(40)
 localizer[0:n2.k] = 1
-localizer[-n2.k] = 1
+localizer[-n2.k:] = 1
 n1.W *= localizer
 
 # Now feed all the TI parameters to local TI NQS

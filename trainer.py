@@ -251,7 +251,7 @@ class TrainerLocalTI(Trainer):
             vector[1 + a] = np.sum(np.tanh(wf.Lt[a * wf.nv:(a + 1) * wf.nv]))
 
         for a in range(wf.alpha):
-            for j in range(-wf.k,wf.k+1):
+            for j in range(-wf.k, wf.k + 1):
                 vector[wf.alpha + 1 + a*locality_range + j + wf.k] = np.sum(
                     [state[(j - s) % wf.nv] * np.tanh(wf.Lt[s + wf.nv * a]) for s in range(wf.nv)])
 
@@ -259,3 +259,27 @@ class TrainerLocalTI(Trainer):
 
     def get_nvar(self, wf):
         return 1 + wf.alpha + wf.alpha*(2*wf.k + 1)
+
+def build_trainer(wf, h, reg_list = (100, 0.9, 1e-4)):
+    """
+    Function to get the appropriate Trainer class depending on wavefunction symmetry
+    
+    :param wf: Wavefunction the trainer is being built for
+    :param h: Hamiltonian to pass to the trainer
+    :param reg_list: Regulator list
+    :return: Trainer object of appropriate symmetry
+    """
+
+    s = wf.symmetry
+    if wf.symmetry == "None":
+        return Trainer(h, reg_list)
+    if wf.symmetry == "Local":
+        return TrainerLocal(h, reg_list)
+    if wf.symmetry ==  "TI":
+        return TrainerTI(h, reg_list)
+    if wf.symmetry == "LocalTI":
+        return TrainerLocalTI(h,reg_list)
+    if wf.symmetry == "Symmetric":
+        return TrainerSymmetric(h, reg_list)
+    # If none of those work, print an error and return nothing
+    raise ValueError("No trainer of appropriate symmetry found. Check Nqs.symmetric string.")

@@ -4,6 +4,9 @@ from scipy.linalg import circulant
 
 
 class Nqs:
+
+    symmetry = "none"  # Label which symmetry this version of the Nqs class has
+
     def __init__(self, filename):
         # Initializing a bunch of variables. Not so necessary in python! but doing it anyway
         self.W = np.zeros((1, 1))  # neural network weights (matrix of W_ij)
@@ -101,6 +104,9 @@ class Nqs:
 
 
 class NqsTI:
+
+    symmetry = "TI"
+
     # Dedicated class for translation-invariant neural networks
     def __init__(self, nv, density):
         # Initialize by providing the number of physical variables (spins) and the hidden unit density
@@ -186,6 +192,9 @@ class NqsTI:
 
 
 class NqsSymmetric:
+
+    symmetry = "Symmetric"
+
     # Dedicated class for arbitrary-symmetric neural networks
     def __init__(self, nv, density, group):
         # Initialize by providing the number of physical variables (spins), the hidden unit density,
@@ -276,6 +285,9 @@ class NqsSymmetric:
 
 
 class NqsLocal:
+
+    symmetry = "Local"
+
     # Class for neural networks with the property that they are k-local
     def __init__(self, nv, k, density):
         self.nv = nv  # number of visible neurons/physical spins
@@ -356,6 +368,9 @@ class NqsLocal:
 
 
 class NqsLocalTI(NqsTI):
+
+    symmetry = "LocalTI"
+
     def __init__(self, nv, density, k):
         NqsTI.__init__(self, nv, density)
         self.Wloc = np.zeros((density, 2 * k + 1), dtype = complex)
