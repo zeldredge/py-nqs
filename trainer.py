@@ -2,6 +2,7 @@ import numpy as np
 from scipy.sparse.linalg import cg
 from scipy.sparse.linalg import LinearOperator
 import sampler
+from joblib import Parallel, delayed
 
 
 class Trainer:
@@ -39,16 +40,13 @@ class Trainer:
         samp.reset_av()
         if therm == True:
             samp.thermalize(batch_size)
-        elocals = np.zeros(batch_size, dtype=complex)  # Elocal results at each sample
-        deriv_vectors = np.zeros((batch_size, self.nvar), dtype=complex)
-        states = []
+        results = []  # Results from all the samples
 
         for sample in range(batch_size):
-            for i in range(samp.nspins):
-                samp.move()
-            states.append(samp.state)
-            elocals[sample] = self.get_elocal(samp.state, samp.wf)
-            deriv_vectors[sample] = self.get_deriv_vector(samp.state, samp.wf)
+            results.append(self.get_sample(samp))
+
+        elocals = np.array([i[0] for i in results])
+        deriv_vectors= np.array([i[1] for i in results])
 
         # Now that we have all the data from sampling let's run our statistics
         # cov = self.get_covariance(deriv_vectors)
@@ -65,7 +63,16 @@ class Trainer:
         self.step_count += batch_size
         return updates, samp.state, np.mean(elocals) / self.nspins
 
+    def get_sample(self,sampler):
+        for i in range(sampler.nspins):
+            sampler.move()
+        return self.get_elocal(sampler.state, sampler.wf), self.get_deriv_vector(sampler.state, sampler.wf)
+
     def get_elocal(self, state, wf):  # Function to calculate local energies; see equation A2 in Carleo and Troyer
+
+        if not all(state == wf.state): # make sure wavefunction lookup table is properly initialized
+            wf.init_lt(state)
+
         eloc = 0j  # Start with 0
         mel, flips = self.h.find_conn(state)  # Get all S' that connect to S via H and their matrix elems
         for flip in range(len(flips)):
