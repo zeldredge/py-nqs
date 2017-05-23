@@ -175,6 +175,7 @@ class NqsTI:
 
         # One Wfull and bfull are constructed, other operations can proceed without knowing about the symmetry
         self.Lt = self.bfull + np.dot(state, self.Wfull)
+        self.state = state
 
     def update_lt(self, state, flips):
         self.Lt -= 2 * np.dot(state[flips], self.Wfull[flips])
@@ -266,6 +267,7 @@ class NqsSymmetric:
 
         # One Wfull and bfull are constructed, other operations can proceed without knowing about the symmetry
         self.Lt = self.bfull + np.dot(state, self.Wfull)
+        self.state = state
 
     def update_lt(self, state, flips):
         self.Lt -= 2 * np.dot(state[flips], self.Wfull[flips])
@@ -318,6 +320,8 @@ class NqsLocal:
 
         for v in range(self.nv):
             self.Lt[v] = self.b[v] + np.dot(self.W[v], state[(self.indices + v) % self.nv])
+
+        self.state = state
 
     def update_lt(self, state, flips):
         for f in flips:
@@ -382,6 +386,7 @@ class NqsLocalTI(NqsTI):
         # to the NqsTI functions
         self.W = np.roll(np.concatenate((self.Wloc, np.zeros((self.alpha, self.nv - 2 * self.k - 1))), 1), self.k, 1)
         NqsTI.init_lt(self, state)
+        self.state = state
 
 
 def ctopy_complex(instring):

@@ -47,34 +47,24 @@ def get_rdist(wf, nruns, h):  # get the quantity R_0^2
     state = s.state  # take the ended state
     t = trainer.build_trainer(wf, h, reg_list=(0, 0, 0))
     # Get -i*S^-1*F for our wavefunction
-
+    u = t.update_vector(wf, state, 100, 1j, 1)[0]
     dtpsi2  = []  # this is the denominator
     states = []
+    avg1 = 0
     for j in range(nruns):
         wf.init_lt(state)
-        s.move()  # make a move
+        for i in range(s.nspins): # Do Monte Carlo sweeps
+            s.move()  # make a move
         state = s.state  # make that move the new state, now we calculate (H*dt)_local
         states.append(state)
-        mel, flips = h.find_conn(state)  # find all states connected to S
-        u = t.update_vector(wf, state, 100, 1j, 1)[0]
-        d2 = t.get_deriv_vector(state, wf)  # get the vector of quantities (1/psi) dpsi/d(parameter)
-        dtpsi2.append(abs(np.dot(d2, u))**2 )# The <dtPsi>^2 part
 
-        # A problem here is that we rely on wf having knowledge of its current state in look-up tables
-        # It makes the kind of iteration I'm about to do an ill-fit. So instead, I will first calculate all the psi'/psi
-        lpops = [wf.pop(state,f[0])*f[1] for f in zip(flips,mel)] # First we get all this info
+        d = t.get_deriv_vector(state, s.wf)  # get the vector of quantities (1/psi) dpsi/d(parameter)
+        eloc = t.get_elocal(state, s.wf) # get the local energy
+        avg1 += eloc*np.dot(d,u) #numerator of the rdist
+        dtpsi2.append(abs(np.dot(d, u))**2 )# The <dtPsi>^2 part
 
-        ddotu = np.zeros(len(flips), dtype = complex) # This will be all the values of dPsi/dW \dot dW/dT
-        for i in range(len(flips)):  # Now we do the H*dt part by going through all connected states via Hamiltonian
-            state2 = np.copy(state)  # get the connected state
-            state2[flips[i]] *= -1
-            if flips[i] != [None]:
-                wf.update_lt(state, flips[i])
-            d = t.get_deriv_vector(state2, wf)  # calculate the derivative vector in that state
-            ddotu[i] = np.dot(d, u)  # keep running average
+    avg1 = abs(avg1/nruns)**2
     avg2 = np.mean(dtpsi2)
-    avg1 = np.mean(lpops*ddotu)
-    avg1 = avg1*np.conj(avg1)
     rdist = acos(sqrt(avg1 / (avg2 * h2))) ** 2
     return rdist
 

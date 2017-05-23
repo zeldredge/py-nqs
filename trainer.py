@@ -2,16 +2,19 @@ import numpy as np
 from scipy.sparse.linalg import cg
 from scipy.sparse.linalg import LinearOperator
 import sampler
+import random
 from joblib import Parallel, delayed
 
 
 class Trainer:
-    def __init__(self, h, reg_list=(100, 0.9, 1e-4)):
+    def __init__(self, h, reg_list=(100, 0.9, 1e-4), cores=1, mag = True):
         self.h = h  # Hamiltonian to evaluate wf against
         self.nspins = h.nspins
         self.reg_list = reg_list  # Parameters for regularization
         self.step_count = 0
         self.nvar = 0
+        self.parallel_cores = cores
+        self.m = mag
 
     def train(self, wf, init_state, batch_size, num_steps, gamma_fun, print_freq=25, file='', out_freq=0):
         state = init_state
@@ -34,19 +37,18 @@ class Trainer:
     def update_vector(self, wf, init_state, batch_size, gamma, step, therm=False):  # Get the vector of updates
         self.nvar = self.get_nvar(wf)
         wf.init_lt(init_state)
-        samp = sampler.Sampler(wf, self.h)  # start a sampler
+        samp = sampler.Sampler(wf, self.h, mag0=self.m)  # start a sampler
         samp.nflips = self.h.minflips
         samp.state = np.copy(init_state)
         samp.reset_av()
         if therm == True:
             samp.thermalize(batch_size)
-        results = []  # Results from all the samples
 
-        for sample in range(batch_size):
-            results.append(self.get_sample(samp))
+        results = Parallel(n_jobs=self.parallel_cores)(
+            delayed(get_sample)(samp, self) for i in range(batch_size))  # Pass sampling to parallelization
 
         elocals = np.array([i[0] for i in results])
-        deriv_vectors= np.array([i[1] for i in results])
+        deriv_vectors = np.array([i[1] for i in results])
 
         # Now that we have all the data from sampling let's run our statistics
         # cov = self.get_covariance(deriv_vectors)
@@ -63,14 +65,9 @@ class Trainer:
         self.step_count += batch_size
         return updates, samp.state, np.mean(elocals) / self.nspins
 
-    def get_sample(self,sampler):
-        for i in range(sampler.nspins):
-            sampler.move()
-        return self.get_elocal(sampler.state, sampler.wf), self.get_deriv_vector(sampler.state, sampler.wf)
-
     def get_elocal(self, state, wf):  # Function to calculate local energies; see equation A2 in Carleo and Troyer
 
-        if not all(state == wf.state): # make sure wavefunction lookup table is properly initialized
+        if not all(state == wf.state):  # make sure wavefunction lookup table is properly initialized
             wf.init_lt(state)
 
         eloc = 0j  # Start with 0
@@ -126,8 +123,8 @@ class Trainer:
 
 
 class TrainerTI(Trainer):
-    def __init__(self, h, reg_list=(100, 0.9, 1e-4)):
-        Trainer.__init__(self, h, reg_list=reg_list)
+    def __init__(self, h, reg_list=(100, 0.9, 1e-4), cores = 1):
+        Trainer.__init__(self, h, reg_list=reg_list, cores = cores)
 
     def apply_update(self, updates, wf):
         wf.a += updates[0]
@@ -162,8 +159,8 @@ class TrainerTI(Trainer):
 
 
 class TrainerSymmetric(Trainer):
-    def __init__(self, h, reg_list=(100, 0.9, 1e-4)):
-        Trainer.__init__(self, h, reg_list=reg_list)
+    def __init__(self, h, reg_list=(100, 0.9, 1e-4), cores = 1):
+        Trainer.__init__(self, h, reg_list=reg_list, cores = cores)
 
     def apply_update(self, updates, wf):
         wf.a += updates[0:wf.a.size]
@@ -200,8 +197,8 @@ class TrainerSymmetric(Trainer):
 
 
 class TrainerLocal(Trainer):
-    def __init__(self, h, reg_list=(100, 0.9, 1e-4)):
-        Trainer.__init__(self, h, reg_list=reg_list)
+    def __init__(self, h, reg_list=(100, 0.9, 1e-4), cores = 1):
+        Trainer.__init__(self, h, reg_list=reg_list, cores = cores)
 
     def apply_update(self, updates, wf):
         wf.a += updates[:wf.a.size]
@@ -238,8 +235,8 @@ class TrainerLocal(Trainer):
 
 
 class TrainerLocalTI(Trainer):
-    def __init__(self, h, reg_list=(100, 0.9, 1e-4)):
-        Trainer.__init__(self, h, reg_list=reg_list)
+    def __init__(self, h, reg_list=(100, 0.9, 1e-4), cores = 1):
+        Trainer.__init__(self, h, reg_list=reg_list, cores = cores)
 
     def apply_update(self, updates, wf):
         wf.a += updates[0]
@@ -248,9 +245,9 @@ class TrainerLocalTI(Trainer):
 
     def get_deriv_vector(self, state, wf):
 
-        locality_range = 2*wf.k+1
+        locality_range = 2 * wf.k + 1
 
-        vector = np.zeros(self.nvar, dtype = complex)
+        vector = np.zeros(self.nvar, dtype=complex)
 
         vector[0] = np.sum(state)  # visible unit bias
 
@@ -259,15 +256,16 @@ class TrainerLocalTI(Trainer):
 
         for a in range(wf.alpha):
             for j in range(-wf.k, wf.k + 1):
-                vector[wf.alpha + 1 + a*locality_range + j + wf.k] = np.sum(
+                vector[wf.alpha + 1 + a * locality_range + j + wf.k] = np.sum(
                     [state[(j - s) % wf.nv] * np.tanh(wf.Lt[s + wf.nv * a]) for s in range(wf.nv)])
 
         return vector
 
     def get_nvar(self, wf):
-        return 1 + wf.alpha + wf.alpha*(2*wf.k + 1)
+        return 1 + wf.alpha + wf.alpha * (2 * wf.k + 1)
 
-def build_trainer(wf, h, reg_list = (100, 0.9, 1e-4)):
+
+def build_trainer(wf, h, reg_list=(100, 0.9, 1e-4), cores=1, m = True):
     """
     Function to get the appropriate Trainer class depending on wavefunction symmetry
     
@@ -279,14 +277,20 @@ def build_trainer(wf, h, reg_list = (100, 0.9, 1e-4)):
 
     s = wf.symmetry
     if wf.symmetry == "None":
-        return Trainer(h, reg_list)
+        return Trainer(h, reg_list=reg_list, cores=cores, mag = m)
     if wf.symmetry == "Local":
-        return TrainerLocal(h, reg_list)
-    if wf.symmetry ==  "TI":
-        return TrainerTI(h, reg_list)
+        return TrainerLocal(h, reg_list=reg_list, cores=cores, mag=m)
+    if wf.symmetry == "TI":
+        return TrainerTI(h, reg_list=reg_list, cores=cores, mag=m)
     if wf.symmetry == "LocalTI":
-        return TrainerLocalTI(h,reg_list)
+        return TrainerLocalTI(h, reg_list=reg_list, cores=cores, mag=m)
     if wf.symmetry == "Symmetric":
-        return TrainerSymmetric(h, reg_list)
+        return TrainerSymmetric(h, reg_list=reg_list, cores=cores, mag=m)
     # If none of those work, print an error and return nothing
     raise ValueError("No trainer of appropriate symmetry found. Check Nqs.symmetric string.")
+
+
+def get_sample(sampler, trainer):
+    for i in range(sampler.nspins):
+        sampler.move()
+    return trainer.get_elocal(sampler.state, sampler.wf), trainer.get_deriv_vector(sampler.state, sampler.wf)

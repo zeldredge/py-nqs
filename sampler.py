@@ -3,7 +3,7 @@ from nqs import *
 
 
 class Sampler:
-    def __init__(self, wf, op, quiet=True, opname ='energy'):
+    def __init__(self, wf, op, quiet=True, opname ='energy', mag0=True):
         # Input args:
         # wf: an instance of the nqs class holding the boltzmann machine
         # hamilt: a Hamiltonian (i.e., class that can return connected states)
@@ -21,8 +21,9 @@ class Sampler:
         self.nflips = 0
         self.quiet = quiet
         self.opname = opname
+        self.mag0 = mag0
 
-    def rand_spins(self, mag0=True):  # Random spin flips, current max is two
+    def rand_spins(self):  # Random spin flips, current max is two
         # mag0 tells the program whether to keep total magnetization at zero or not
         # This function generates a set of flips (stored in class variables),
         # and then checks to see whether it's a good set, returning True or False
@@ -30,19 +31,19 @@ class Sampler:
         self.flips = np.random.randint(0, self.nspins, self.nflips)  # Get a nflips-length list of flips
 
         if self.nflips == 2:
-            if not mag0:
+            if not self.mag0:
                 return self.flips[0] != self.flips[1]
-            if mag0:
+            else:
                 return self.state[self.flips[0]] != self.state[self.flips[1]]
 
         return True
 
-    def init_random_state(self, mag0=True):
+    def init_random_state(self):
 
-        if not mag0:  # if we don't enforce magnetization = 0, it is easy
+        if not self.mag0:  # if we don't enforce magnetization = 0, it is easy
             self.state = np.random.choice([-1, 1], self.nspins)  # make a bunch of random -1, 1
 
-        if mag0:  # if we do, need to be cleverer
+        if self.mag0:  # if we do, need to be cleverer
             if self.nspins % 2 != 0:
                 raise ValueError('Need even number of spins to have zero magnetization!')
             base_array = np.concatenate(
@@ -91,7 +92,7 @@ class Sampler:
     # Sweepfactor = number of single flips per sweep
     # nflipss = number of flips to make per move, automatically 1 or 2 depending on Hamiltonian if the input is -1
 
-    def run(self, nsweeps, thermfactor=.1, sweepfactor=1, nflipss=-1):
+    def run(self, nsweeps, thermfactor=.1, sweepfactor=1, nflipss=-1, init_state=None):
         self.nflips = nflipss
         if self.nflips == -1:  # Fix the number of flips
             self.nflips = self.operator.minflips
@@ -109,7 +110,10 @@ class Sampler:
         if not self.quiet:
             print("Starting Monte Carlo sampling, nsweeps = {}".format(nsweeps))
 
-        self.init_random_state()  # Get the random state
+        if init_state == None:
+            self.init_random_state()  # Get the random state
+        else:
+            self.state = init_state
         self.wf.init_lt(self.state)  # Initialize the look-up tables
 
         self.reset_av()  # Reset variables
