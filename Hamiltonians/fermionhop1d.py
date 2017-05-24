@@ -25,22 +25,23 @@ class FermionHop: # Class implementing Hamiltonian for \sum_(i) c_i+1^dag c_i+ h
                 # in order of increasing i. So the question is what sign accumulates when we commute c^\dag_i+1 c_i
                 # past the string. Well, we need to move it past all c^\dag_k with k > i + 1. The annhilation operator
                 # commutes without complication, the creation operator accumulates a -1 for every one it crosses
-                sign = (-1)**len([x for x in state[i+2:] if x == 1])
+                sign = (-1)**len([x for x in state[:i] if x == 1])
                 mel.append(self.t*sign)
 
-            elif state[i+1] == 1 and state[i] == 1: # or the other hop
-                flips.append(np.array([i + 1, i]))
-                sign = (-1) ** len([x for x in state[i + 1:] if x == 1])
+            elif state[i+1] == 1 and state[i] == -1: # or the other hop
+                flips.append(np.array([i, i+ 1]))
+                sign = (-1) ** len([x for x in state[:i] if x == 1])
                 mel.append(self.t * sign)
 
         if self.pbc: # Periodic boundaries?
             if state[-1] == 1 and state[0] == -1:
-                flips.append(np.array([-1, 0]))
-                mel.append(self.t) # In this case, c_0 commutes through and c^dag_N is already at the end -- no sign
+                flips.append(np.array([0, -1]))
+                sign = (-1) ** len([x for x in state if x == 1])
+                mel.append(self.t*sign) # In this case, c_0 commutes through and c^dag_N is already at the end -- no sign
 
-            elif state[-1] == 1 and state[0] == -1:
+            elif state[-1] == -1 and state[0] == 1:
                 flips.append(np.array([0, - 1]))
-                sign = (-1)**len([x for x in state if x == 1])
-                mel.append(self.t*sign)  # In this case, c^\dag_0 commutes through and c_N is already at the end
+
+                mel.append(self.t)  # In this case, c^\dag_0 commutes through and c_N is already at the end
 
         return mel, flips

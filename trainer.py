@@ -49,7 +49,7 @@ class Trainer:
 
         elocals = np.array([i[0] for i in results])
         deriv_vectors = np.array([i[1] for i in results])
-
+        states = np.array([i[2] for i in results])
         # Now that we have all the data from sampling let's run our statistics
         # cov = self.get_covariance(deriv_vectors)
         cov_operator = LinearOperator((self.nvar, self.nvar), dtype=complex,
@@ -293,4 +293,4 @@ def build_trainer(wf, h, reg_list=(100, 0.9, 1e-4), cores=1, m = True):
 def get_sample(sampler, trainer):
     for i in range(sampler.nspins):
         sampler.move()
-    return trainer.get_elocal(sampler.state, sampler.wf), trainer.get_deriv_vector(sampler.state, sampler.wf)
+    return trainer.get_elocal(sampler.state, sampler.wf), trainer.get_deriv_vector(sampler.state, sampler.wf), sampler.state
