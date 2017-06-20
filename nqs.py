@@ -5,22 +5,19 @@ from scipy.linalg import circulant
 
 class Nqs:
 
-    symmetry = "none"  # Label which symmetry this version of the Nqs class has
+    symmetry = "None"  # Label which symmetry this version of the Nqs class has
 
-    def __init__(self, filename):
+    def __init__(self, nspins, alpha):
         # Initializing a bunch of variables. Not so necessary in python! but doing it anyway
-        self.W = np.zeros((1, 1))  # neural network weights (matrix of W_ij)
-        self.a = np.zeros(1)  # neural network visible bias (vector)
-        self.b = np.zeros(1)  # neural network hidden bias (vector)
-        self.nh = 0  # number of hidden spins (to be determined from file)
-        self.nv = 0  # number of visible spins (to be determiend from file)
+        self.W = np.zeros((nspins, nspins*alpha))  # neural network weights (matrix of W_ij)
+        self.a = np.zeros(nspins)  # neural network visible bias (vector)
+        self.b = np.zeros(alpha*nspins)  # neural network hidden bias (vector)
+        self.nh = nspins*alpha  # number of hidden spins (to be determined from file)
+        self.nv = nspins  # number of visible spins (to be determiend from file)
 
-        self.Lt = np.zeros(1)  # look-up table for angles
+        self.Lt = np.zeros(nspins*alpha)  # look-up table for angles
 
         self.log2 = log(2)  # Apparently easier to precompute this?
-
-        # Ok, now get all the parameters
-        self.load_parameters(filename)
 
     def log_val(self, state):  # computes the logarithm of the wavefunction in a particular state
         # Just uses the formula in C1 with the logarithm used to take a sum
@@ -63,6 +60,7 @@ class Nqs:
         return np.exp(self.log_pop(state, flips))
 
     def init_lt(self, state):  # Initialize lookup tables
+        self.state = state
         self.Lt = np.zeros(self.nh)  # See eqn C7
         self.Lt = self.b + np.dot(state, self.W)
         # self.Lt = [self.b[h] + sum([self.W[v][h] * state[v] for v in range(self.nv)]) for h in range(self.nh)]

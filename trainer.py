@@ -279,13 +279,13 @@ def build_trainer(wf, h, reg_list=(100, 0.9, 1e-4), cores=1, m = True):
     if wf.symmetry == "None":
         return Trainer(h, reg_list=reg_list, cores=cores, mag = m)
     if wf.symmetry == "Local":
-        return TrainerLocal(h, reg_list=reg_list, cores=cores, mag=m)
+        return TrainerLocal(h, reg_list=reg_list, cores=cores)
     if wf.symmetry == "TI":
-        return TrainerTI(h, reg_list=reg_list, cores=cores, mag=m)
+        return TrainerTI(h, reg_list=reg_list, cores=cores)
     if wf.symmetry == "LocalTI":
-        return TrainerLocalTI(h, reg_list=reg_list, cores=cores, mag=m)
+        return TrainerLocalTI(h, reg_list=reg_list, cores=cores)
     if wf.symmetry == "Symmetric":
-        return TrainerSymmetric(h, reg_list=reg_list, cores=cores, mag=m)
+        return TrainerSymmetric(h, reg_list=reg_list, cores=cores)
     # If none of those work, print an error and return nothing
     raise ValueError("No trainer of appropriate symmetry found. Check Nqs.symmetric string.")
 
