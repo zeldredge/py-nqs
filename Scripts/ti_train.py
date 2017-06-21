@@ -13,19 +13,22 @@ import fermionhop1d
 start = time.time()
 nruns = 1000
 nspins = 10
-nsteps = 200
+nsteps = 100
 m = True
 
 wf = nqs.NqsTI(nspins, 1)  # A translation invariant NQS instance
 
-wf.W = 0.1*np.random.random(wf.W.shape) + 0j # Fill in with starting values
-wf.a = 0.1*np.random.uniform() + 0j
-wf.b = 0.1*np.random.random(wf.b.shape) + 0j
+wf.Wreduced = 0.1*np.random.random(wf.Wreduced.shape) + 0j # Fill in with starting values
+if type(wf.a) == int:
+    wf.a = 0.1*np.random.uniform() + 0j
+else:
+    wf.a = 0.1*np.random.uniform()*np.ones(wf.a.shape) + 0j
+wf.breduced = 0.1*np.random.random(wf.breduced.shape) + 0j
 
-#h = ising1d.Ising1d(40,0.5)
-#h = heisenberg1d.Heisenberg1d(10,0)
-#h = xyz.XYZ(10,(-1,-1,0))
-h = fermionhop1d.FermionHop(nspins,-2)
+h = ising1d.Ising1d(10,0.5)
+#h = heisenberg1d.Heisenberg1d(10,1)
+h = xyz.XYZ(10,(-1,-1,0))
+#h = fermionhop1d.FermionHop(nspins,-2)
 base_array = -1*np.ones(nspins)
 base_array[0:nspins // 2] *= -1
 state = np.random.permutation(base_array)  # return a random permutation of the half 1, half-1 array

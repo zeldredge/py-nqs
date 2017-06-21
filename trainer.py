@@ -121,15 +121,14 @@ class Trainer:
     def get_nvar(self, wf):
         return wf.nh + wf.nv + wf.nh * wf.nv
 
-
 class TrainerTI(Trainer):
-    def __init__(self, h, reg_list=(100, 0.9, 1e-4), cores = 1):
-        Trainer.__init__(self, h, reg_list=reg_list, cores = cores)
+    def __init__(self, h, reg_list=(100, 0.9, 1e-4), cores=1):
+        Trainer.__init__(self, h, reg_list=reg_list, cores=cores)
 
     def apply_update(self, updates, wf):
         wf.a += updates[0]
-        wf.b += updates[1:wf.alpha + 1]
-        wf.W += updates[wf.alpha + 1:].reshape(wf.W.shape)
+        wf.breduced += updates[1:wf.alpha + 1]
+        wf.Wreduced += updates[wf.alpha + 1:].reshape(wf.Wreduced.shape)
 
     def get_deriv_vector(self, state, wf):
         # The derivative vector is a vector which contains the following elements in one column:
@@ -156,7 +155,6 @@ class TrainerTI(Trainer):
 
     def get_nvar(self, wf):
         return 1 + wf.alpha + wf.alpha * wf.nv
-
 
 class TrainerSymmetric(Trainer):
     def __init__(self, h, reg_list=(100, 0.9, 1e-4), cores = 1):
@@ -195,7 +193,6 @@ class TrainerSymmetric(Trainer):
     def get_nvar(self, wf):
         return wf.a.size + wf.b.size + wf.W.size
 
-
 class TrainerLocal(Trainer):
     def __init__(self, h, reg_list=(100, 0.9, 1e-4), cores = 1):
         Trainer.__init__(self, h, reg_list=reg_list, cores = cores)
@@ -232,7 +229,6 @@ class TrainerLocal(Trainer):
                         wf.Lt[v, b])
 
         return vector
-
 
 class TrainerLocalTI(Trainer):
     def __init__(self, h, reg_list=(100, 0.9, 1e-4), cores = 1):

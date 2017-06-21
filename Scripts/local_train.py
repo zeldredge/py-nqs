@@ -13,9 +13,9 @@ nruns = 100
 k = 1
 gam = .01
 nspins = 10
-#h = heisenberg1d.Heisenberg1d(nspins,1)
+h = heisenberg1d.Heisenberg1d(nspins,1)
 #h = ising1d.Ising1d(40,0.5)
-h = fermionhop1d.FermionHop(nspins,1)
+#h = fermionhop1d.FermionHop(nspins,1)
 
 wf = nqs.NqsLocal(nspins, 1, k)  # A local NQS instance
 

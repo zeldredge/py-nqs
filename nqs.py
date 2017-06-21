@@ -34,16 +34,9 @@ class Nqs:
     # Next function is LogPoP, computes Log Psi'/Psi, where Psi' is the state with certain flipped spins
     # Look-up tables are used for speed; the vector flips tells us which are flipped
 
-    def log_pop(self, state, flips):
-        if len(flips) == 0:  # No flips? We out
-            return 0
+    def log_pop(self, state, f):
 
-        if len(flips) == 1 and flips == [None]:
-            return 0
-
-        if len(flips) == 2:
-            if not np.any(flips - flips[0]):  # If it's this one that means no flips
-                return 0
+        flips = self.reduce_flips(f)
 
         logpop = 0 + 0j  # Initialize the variable
 
@@ -97,97 +90,51 @@ class Nqs:
     def save_parameters(self, filename):
         np.savez(filename, a=self.a, b=self.b, W=self.W)
 
-    def nspins(self):  # This function exists for some reason, and I don't want to break anything
-        return self.nv
+    def reduce_flips(self,f):
+        # As part of my effort to standardize how multi-flips etc are handled, I now assume that every set of flips will
+        # contain a number of floats and possibly NaNs (b/c numpy arrays can't be jagged, so need to have as many elements
+        # as largest member). This will strip out all the NaNs and return the rest as integers
+        return f[np.invert(np.isnan(f))].astype(int)
 
-
-class NqsTI:
+class NqsTI(Nqs):
 
     symmetry = "TI"
 
-    # Dedicated class for translation-invariant neural networks
-    def __init__(self, nv, density):
-        # Initialize by providing the number of physical variables (spins) and the hidden unit density
-        self.alpha = density
-        self.nv = nv
-
-        self.W = np.zeros((self.alpha, self.nv), dtype=complex)
+    #Dedicated class fo rtranslation-invariant neural networks
+    def __init__(self, nspins, alpha):
+        Nqs.__init__(self, nspins, alpha)
+        self.Wreduced = np.zeros((alpha, self.nv), dtype=complex)
+        self.alpha = alpha
         # W is all the weights; for each feature there is a vector describing its weights
 
         # First we take W and, for each feature, produce a matrix that twists it so we get one "unsymmetrized"
         # weight matrix. Then we add concatenate the features to get the one big array we want
-        self.Wfull = np.array([np.array([np.roll(self.W[a], -f) for f in range(self.nv)]) for a in range(density)])
-        self.Wfull = np.concatenate(self.Wfull, axis=1)
+        self.W = np.array([np.array([np.roll(self.Wreduced[a], -f) for f in range(self.nv)]) for a in range(alpha)])
+        self.W = np.concatenate(self.W, axis=1)
 
-        self.a = 0  # There's only one visible bias in this case, because of TI
-        self.b = np.empty(self.alpha, dtype=complex)  # One bias per feature
+        self.breduced = np.empty(alpha, dtype=complex)  # One bias per feature
         # We use a similar scheme for b
-        self.bfull = np.concatenate(np.array([self.b[a] * np.ones(nv) for a in range(density)]))
+        self.b = np.concatenate(np.array([self.breduced[a] * np.ones(nspins) for a in range(alpha)]))
 
         # Note: I don't really need to establish these arrays here in the initialization per se
         # But it helps you see what they WILL BE when there's actually something there and not np.zeros
-        self.Lt = np.zeros(self.alpha * self.nv, dtype=complex)
-
-    def log_val(self, state):
-        # Refers to the existing look-up tables to get a value
-        value = self.a * np.sum(state)
-        value += np.sum(np.log(np.cosh(self.Lt)))
-        return value
-
-    def log_pop(self, state, flips):
-        # Log of Psi'/Psi when we start in state Psi and flip the spins identified by index in list flips
-        if len(flips) == 0:  # No flips? We out
-            return 0
-
-        if len(flips) == 1 and flips == [None]:
-            return 0
-
-        if len(flips) == 2:
-            if not np.any(flips - flips[0]):  # If it's this one that means no flips
-                return 0
-
-        logpop = 0 + 0j
-
-        # First, we take into account the change due to the visible bias
-        logpop += -2 * self.a * np.sum(state[flips])
-
-        # Since have constructed Wfull, we can basically use same code as we did in the non-symmetric case
-        logpop += np.sum(np.log(np.cosh(self.Lt - 2 * np.dot(state[flips], self.Wfull[flips])))
-                         - np.log(np.cosh(self.Lt)))
-
-        return logpop
-
-    def pop(self, state, flips):
-        return np.exp(self.log_pop(state, flips))
+        self.Lt = np.zeros(alpha * self.nv, dtype=complex)
 
     def init_lt(self, state):
 
         # Just as in init...
         # We use roll to move the W vectors backwards somewhat, and then concatenate them on top of each other
         # The result is one big matrix we can use to get the weights
-        self.Wfull = np.array([np.array([np.roll(self.W[a], -f) for f in range(self.nv)]) for a in range(self.alpha)])
-        self.Wfull = np.concatenate(self.Wfull, axis=1)
+        self.W = np.array([np.array([np.roll(self.Wreduced[a], -f) for f in range(self.nv)]) for a in range(self.alpha)])
+        self.W = np.concatenate(self.W, axis=1)
 
         # Same principle for bfull
-        self.bfull = np.concatenate(np.array([self.b[a] * np.ones(self.nv) for a in range(self.alpha)]))
+        self.b = np.concatenate(np.array([self.breduced[a] * np.ones(self.nv) for a in range(self.alpha)]))
 
         # One Wfull and bfull are constructed, other operations can proceed without knowing about the symmetry
-        self.Lt = self.bfull + np.dot(state, self.Wfull)
+        self.Lt = self.b + np.dot(state, self.W)
         self.state = state
 
-    def update_lt(self, state, flips):
-        self.Lt -= 2 * np.dot(state[flips], self.Wfull[flips])
-
-    def load_parameters(self, filename):
-        temp_file = np.load(filename)
-        self.a = temp_file['a']
-        self.b = temp_file['b']
-        self.W = temp_file['W']
-        self.Wfull = np.array([np.roll(self.W, -f) for f in range(self.nv)])
-        (self.alpha, self.nv) = self.W.shape
-
-    def save_parameters(self, filename):
-        np.savez(filename, a=self.a, b=self.b, W=self.W)
 
 
 class NqsSymmetric:
@@ -283,8 +230,7 @@ class NqsSymmetric:
     def save_parameters(self, filename):
         np.savez(filename, a=self.a, b=self.b, W=self.W)
 
-
-class NqsLocal:
+class NqsLocal(Nqs):
 
     symmetry = "Local"
 
@@ -306,13 +252,6 @@ class NqsLocal:
         self.a = np.zeros(self.nv, dtype=complex)  # Visible unit biases
         self.indices = np.arange(-self.k, self.k + 1)  # Indices to target (defining locality) -- useful later
 
-    def log_val(self, state):  # return the logarithm of the value of the wavefunction
-        self.init_lt(state)
-        value = 0
-        value += np.dot(self.a, state)
-        value += np.sum(np.log(np.cosh(self.Lt)))
-        return value
-
     def init_lt(self, state):
         self.Lt = np.zeros((self.nv, self.alpha), dtype=complex)
 
@@ -326,16 +265,9 @@ class NqsLocal:
             for i in self.indices:
                 self.Lt[(f + i) % self.nv, :] -= 2 * state[f] * self.W[(f + i) % self.nv, :, self.k - i]
 
-    def log_pop(self, state, flips):
-        if len(flips) == 0:  # No flips? We out
-            return 0
+    def log_pop(self, state, f):
 
-        if len(flips) == 1 and flips == [None]:
-            return 0
-
-        if len(flips) == 2:
-            if not np.any(flips - flips[0]):  # If it's this one that means no flips
-                return 0
+        flips = self.reduce_flips(f)
 
         logpop = 0 + 0j  # Initialize the variable
 
@@ -382,7 +314,7 @@ class NqsLocalTI(NqsTI):
         # Only change between this and the "true" TI is that I am storing the small vector Wloc that holds the only
         # relevant weights. Therefore all I am doing here is building the "full" TI vector and then handing it off
         # to the NqsTI functions
-        self.W = np.roll(np.concatenate((self.Wloc, np.zeros((self.alpha, self.nv - 2 * self.k - 1))), 1), self.k, 1)
+        self.Wreduced = np.roll(np.concatenate((self.Wloc, np.zeros((self.alpha, self.nv - 2 * self.k - 1))), 1), self.k, 1)
         NqsTI.init_lt(self, state)
         self.state = state
 

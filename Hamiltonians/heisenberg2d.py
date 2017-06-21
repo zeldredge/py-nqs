@@ -38,7 +38,7 @@ class Heisenberg2d:
         # Given a state, find all states connected to it by this Hamiltonian
         # State should be a vector of \pm 1
         mel = np.zeros(1)
-        flipsh = np.array([[0, 0]])  # The "0,0" entry is a dummy, and is dealt with differently by nqs
+        flipsh = np.array([[np.nan, np.nan]])  # The "0,0" entry is a dummy, and is dealt with differently by nqs
 
         # First we do the ZZ interaction
         mel[0] = sum([sum([state[j]*state[k] for k in self.nn[j]]) for j in range(self.nspins)])

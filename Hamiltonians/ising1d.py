@@ -16,9 +16,9 @@ class Ising1d:
         mel[0] = 0
 
         # all the flipsh are going to be "[j-1]" except the diagonal one
-        # which we will make as [ 0, 0] because nqs knows how to handle that
-        flipsh  = list(np.reshape(np.arange(self.nspins+1), (self.nspins+1, 1)) - 1)
-        flipsh[0] = [None]
+        # which we will make NaN because nqs knows how to handle that
+        flipsh  = np.reshape(np.arange(self.nspins+1, dtype = float), (self.nspins+1, 1)) - 1
+        flipsh[0] = np.array([np.nan])
 
         # Now we do the ZZ interaction
         mel[0] -= sum([state[i]*state[i+1] for i in range(self.nspins - 1)])

@@ -5,8 +5,9 @@ import heisenberg1d
 import time
 from scipy.linalg import hankel
 
-n1 = nqs.Nqs("./Ground/Heisenberg1d_40_1_1.npz")  # a full, normal nqs without translation invariance
-n2 = nqs.NqsTI(n1.nv, 2)  # A translation invariant NQS instance with alpha = 2
+n1 = nqs.Nqs(40,1)
+n1 = n1.load_parameters("./Outputs/evolution_ti_0.npz")  # a full, normal nqs without translation invariance
+n2 = nqs.NqsTI(n1.nv, 1)  # A translation invariant NQS instance with alpha = 2
 
 # Now check whether nqs is TI
 wti = np.all(np.isclose(n1.W, hankel(n1.W[:][0], n1.W[-1])))
