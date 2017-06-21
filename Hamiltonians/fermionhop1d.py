@@ -8,7 +8,7 @@ class FermionHop: # Class implementing Hamiltonian for \sum_(i) c_i+1^dag c_i+ h
         self.nspins = nspins
         self.t = t
         self.pbc = pbc
-        self.minflips = 1
+        self.minflips = 2
         print("# Using the 1d free fermion model with t = {}".format(t))
 
     def find_conn(self, state):

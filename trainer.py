@@ -70,10 +70,10 @@ class Trainer:
         if not all(state == wf.state):  # make sure wavefunction lookup table is properly initialized
             wf.init_lt(state)
 
-        eloc = 0j  # Start with 0
         mel, flips = self.h.find_conn(state)  # Get all S' that connect to S via H and their matrix elems
-        for flip in range(len(flips)):
-            eloc += mel[flip] * wf.pop(state, flips[flip])
+        #for flip in range(len(flips)):
+        #    eloc += mel[flip] * wf.pop(state, flips[flip])
+        eloc = sum([m*wf.pop(state,f) for m, f in zip(mel, flips)])
 
         return eloc
 

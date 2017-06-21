@@ -25,7 +25,7 @@ wf.b = 0.1*np.random.random(wf.b.shape) + 0j
 #h = ising1d.Ising1d(40,0.5)
 #h = heisenberg1d.Heisenberg1d(10,0)
 #h = xyz.XYZ(10,(-1,-1,0))
-h = fermionhop1d.FermionHop(nspins,-1)
+h = fermionhop1d.FermionHop(nspins,-2)
 base_array = -1*np.ones(nspins)
 base_array[0:nspins // 2] *= -1
 state = np.random.permutation(base_array)  # return a random permutation of the half 1, half-1 array
@@ -38,7 +38,7 @@ state = s.state
 wf.init_lt(state)
 
 def gamma_fun(p):
-    return .1
+    return .05
     #return .99**p
 
 t = trainer.build_trainer(wf,h)
