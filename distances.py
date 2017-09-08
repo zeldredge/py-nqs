@@ -8,15 +8,19 @@ from cmath import *
 # See Eqn B2 in Carleo + Troyer, also Fig 6b
 
 def getZ(wf, nruns):
-    # i = IdentityOp(wf.nv)
-    # s = sampler.Sampler(wf, i)
-    # s.run(nruns)
-    # return s.estav
+    #i = IdentityOp(wf.nv)
+    #s = sampler.Sampler(wf, i)
+    #s.run(nruns)
+    #return s.estav*wf.nv
     return 1.0
 
 
 def get_ddist(wf, H, delta, nruns):  # get the quantity D_0^2
     # see milanote for the breakdown into expectation values
+
+    h_samp = sampler.Sampler(wf, H, quiet = False)
+    h_samp.run(nruns)  # calculate < H>
+    e = h_samp.estav * wf.nv  # Sampler naturally returns a per-spin result
 
     z = getZ(wf, nruns)  # <I>
     h2op = Hsq(H)  # build the H^2 sampler
@@ -24,13 +28,11 @@ def get_ddist(wf, H, delta, nruns):  # get the quantity D_0^2
     hsq_samp.run(nruns)
     h2 = hsq_samp.estav * wf.nv  # calculate <H^2>
 
-    h_samp = sampler.Sampler(wf, H)
-    h_samp.run(nruns)  # calculate < H>
-    e = h_samp.estav * wf.nv  # Sampler naturally returns a per-spin result
+    frac = min((z ** 2 + delta ** 2 * e ** 2) / (z * (z + delta ** 2 * h2)), .9999)
+    #frac should never be greater than 1 but can occur due to MC error
 
-    frac = (z ** 2 + delta ** 2 * e ** 2) / (z * (z + delta ** 2 * h2))
-
-    return acos(sqrt(frac)) ** 2
+    ddist = acos(sqrt(frac))**2
+    return ddist
 
 
 def get_rdist(wf, nruns, h):  # get the quantity R_0^2
@@ -39,15 +41,15 @@ def get_rdist(wf, nruns, h):  # get the quantity R_0^2
     hsq_samp = sampler.Sampler(wf, h2op)
     hsq_samp.run(nruns)
     h2 = hsq_samp.estav * wf.nv  # calculate <H^2>
-    s = sampler.Sampler(wf, IdentityOp)  # build a sampler with generic (identity) observable
-    #s.state = np.random.permutation(np.concatenate(
-     #   (np.ones(int(20)), -1 * np.ones(int(20)))))
-    s.state = np.ones(wf.nv)
+    s = sampler.Sampler(wf, IdentityOp(10))  # build a sampler with generic (identity) observable
+    s.state = np.random.permutation(np.concatenate(
+        (np.ones(int(5)), -1 * np.ones(int(5)))))
+    #s.state = np.ones(wf.nv)
     s.thermalize(1000)  # thermalize
-    state = s.state  # take the ended state
+    state = np.copy(s.state)  # take the ended state
     t = trainer.build_trainer(wf, h, reg_list=(0, 0, 0))
     # Get -i*S^-1*F for our wavefunction
-    u = t.update_vector(wf, state, 100, 1j, 1)[0]
+    u = t.update_vector(wf, state, 1000, 1j, 1)[0]
     dtpsi2  = []  # this is the denominator
     states = []
     avg1 = 0
@@ -55,7 +57,7 @@ def get_rdist(wf, nruns, h):  # get the quantity R_0^2
         wf.init_lt(state)
         for i in range(s.nspins): # Do Monte Carlo sweeps
             s.move()  # make a move
-        state = s.state  # make that move the new state, now we calculate (H*dt)_local
+        state = np.copy(s.state)  # make that move the new state, now we calculate (H*dt)_local
         states.append(state)
 
         d = t.get_deriv_vector(state, s.wf)  # get the vector of quantities (1/psi) dpsi/d(parameter)
@@ -75,7 +77,7 @@ class IdentityOp:  # because I need to get the partition function
         self.nspins = nspins
 
     def find_conn(self, state):
-        flipsh = [[None]]
+        flipsh = np.array([np.nan])
         mel = [1]
         return mel, flipsh
 
@@ -95,8 +97,8 @@ class Hsq:  # automagically construct the Hamiltonian**2 given the original Hami
         # The total matrix element for a given flip will include all these possible paths
         for f in range(len(hflips)):
             state2 = np.copy(state)
-            if hflips[f] != [None]:
-                state2[hflips[f]] *= -1
+            if not np.isnan(hflips[f]):
+                state2[hflips[f].astype(int)] *= -1
             h2mel, h2flips = self.baseh.find_conn(state2)
 
             for s in range(len(h2flips)):
@@ -104,15 +106,15 @@ class Hsq:  # automagically construct the Hamiltonian**2 given the original Hami
                 # Hamiltonian. We do this by first creating an arary of all ones:
                 test = np.ones(self.nspins)
                 # Then we apply both sets of flips
-                if hflips[f] != [None]:
-                    test[hflips[f]] *= -1
-                if h2flips[s] != [None]:
-                    test[h2flips[s]] *= -1
+                if not np.isnan(hflips[f]):
+                    test[hflips[f].astype(int)] *= -1
+                if not np.isnan(h2flips[s]):
+                    test[h2flips[s].astype(int)] *= -1
                 # The ones which need to be flipped are now the -1 that remain after both operations
                 flips_comp = [x for x in np.arange(self.nspins) if test[x] < 0]
                 # There's a chance flips_comp ends up empty, in which case we need to set it to none
                 if not flips_comp:
-                    flips_comp = [None]
+                    flips_comp = [np.nan]
 
                 # Now we check whether the composite flip is in the total flips list (flipsh) yet
 
@@ -122,4 +124,8 @@ class Hsq:  # automagically construct the Hamiltonian**2 given the original Hami
                 else:  # Otherwise, append it
                     flipsh.append(flips_comp)
                     mel.append(h2mel[s] * hmel[f])
+
+        # Now we have a jagged list of flips which we want to convert into our array
+        max_len = len(sorted(flipsh,key=len,reverse=True)[0])
+        flipsh = np.array([xi + [np.nan] * (max_len - len(xi)) for xi in flipsh])
         return mel, flipsh

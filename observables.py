@@ -1,3 +1,5 @@
+import numpy as np
+
 # This file stores observables to be fed to the Sampler
 # They should look like the Hamiltonians, but they're not used that way, so I'll put them here
 
@@ -14,7 +16,7 @@ class Sigmax:
         # For sigma x, there is only one connected state -- it has matrix element 1 and flips a single spin
         mel = [1]
 
-        flipsh = [[self.which]]
+        flipsh = np.array([[self.which]])
 
         return mel, flipsh  # So what we have here is a vector of all matrix elements,
         # and then a vector which tells you which states to flip to get that connection

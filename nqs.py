@@ -36,6 +36,11 @@ class Nqs:
 
     def log_pop(self, state, f):
 
+        #If there are no flips, return 1
+        if np.all(np.isnan(f)):
+            return 0
+
+        #Otherwise, reduce to the integer array we want
         flips = self.reduce_flips(f)
 
         logpop = 0 + 0j  # Initialize the variable
@@ -134,6 +139,20 @@ class NqsTI(Nqs):
         # One Wfull and bfull are constructed, other operations can proceed without knowing about the symmetry
         self.Lt = self.b + np.dot(state, self.W)
         self.state = state
+
+    def save_parameters(self, filename):
+        np.savez(filename, a=self.a, b=self.b, breduced = self.breduced,
+                 W=self.W, Wreduced = self.Wreduced, nv = self.nv, alpha = self.alpha)
+
+    def load_parameters(self, filename):
+        temp_file = np.load(filename)
+        self.a = temp_file['a']
+        self.b = temp_file['b']
+        self.breduced = temp_file['breduced']
+        self.W = temp_file['W']
+        self.Wreduced = temp_file['Wreduced']
+        self.nv = int(temp_file['nv'])
+        self.alpha = int(temp_file['alpha'])
 
 
 

@@ -8,11 +8,11 @@ import distances
 import ising1d
 
 #Script to generate the data -- sigmax(t) for all our time-evolved wave functions
-nsteps = 200
-data_rate = 25
+nsteps = 400
+data_rate = 5
 nruns = 1000
 talk_rate = 25
-h = ising1d.Ising1d(40,1.0)
+h = ising1d.Ising1d(10,1.0)
 
 ## Now that we have all the wavefunctions generated, find the <sigma(x)> at each one
 
@@ -20,16 +20,16 @@ h = ising1d.Ising1d(40,1.0)
 print("Fully connected ANNQS")
 sxnonloc = []
 nonlocerr = []
-wf = nqs.NqsTI(40,1)
+wf = nqs.NqsTI(10,1)
 start_time = time.time()
 for t in np.arange(0, nsteps, data_rate):
     if t % talk_rate == 0:
         print('t = {}'.format(t))
-    wf.load_parameters('../Outputs/evolution_ti_'+str(t)+'.npz')
-    s = sampler.Sampler(wf, observables.Sigmax(40,1), opname='transverse polarization')
+    wf.load_parameters('../Outputs/10SpinEvolve/evolution_ti_'+str(t)+'.npz')
+    s = sampler.Sampler(wf, observables.Sigmax(10,1), opname='transverse polarization')
     s.run(nruns)
-    sxnonloc.append(40*s.estav)
-    err = distances.get_rdist(wf,nruns,h)/distances.get_ddist(wf,h,.01,nruns)
+    sxnonloc.append(10*s.estav)
+    err = distances.get_rdist(wf,nruns,h)#/distances.get_ddist(wf,h,.01,nruns)
     nonlocerr.append(err)
 print("time elapsed: {:.2f}s".format(time.time() - start_time))
 
@@ -37,16 +37,16 @@ print("time elapsed: {:.2f}s".format(time.time() - start_time))
 sx1 = []
 loc1err = []
 print("1-local ANNQS")
-wf = nqs.NqsLocal(40,1,1)
+wf = nqs.NqsLocal(10,1,1)
 start_time = time.time()
 for t in np.arange(0, nsteps, data_rate):
     if t % talk_rate == 0:
         print('t = {}'.format(t))
-    wf.load_parameters('../Outputs/evolution_k=1_'+str(t)+'.npz')
-    s = sampler.Sampler(wf, observables.Sigmax(40,1), opname='transverse polarization')
+    wf.load_parameters('../Outputs/10SpinEvolve/evolution_1loc_'+str(t)+'.npz')
+    s = sampler.Sampler(wf, observables.Sigmax(10,1), opname='transverse polarization')
     s.run(nruns)
-    sx1.append(40*s.estav)
-    err = distances.get_rdist(wf, nruns, h) / distances.get_ddist(wf,h,.01,nruns)
+    sx1.append(10*s.estav)
+    err = distances.get_rdist(wf, nruns, h) #/ distances.get_ddist(wf,h,.01,nruns)
     loc1err.append(err)
 print("time elapsed: {:.2f}s".format(time.time() - start_time))
 
@@ -54,16 +54,16 @@ print("time elapsed: {:.2f}s".format(time.time() - start_time))
 print("2-local ANNQS")
 sx2 = []
 loc2err = []
-wf = nqs.NqsLocal(40,2,1)
+wf = nqs.NqsLocal(10,2,1)
 start_time = time.time()
 for t in np.arange(0, nsteps, data_rate):
     if t % talk_rate == 0:
         print('t = {}'.format(t))
-    wf.load_parameters('../Outputs/evolution_k=2_'+str(t)+'.npz')
-    s = sampler.Sampler(wf, observables.Sigmax(40,1), opname='transverse polarization')
+    wf.load_parameters('../Outputs/10SpinEvolve/evolution_2loc_'+str(t)+'.npz')
+    s = sampler.Sampler(wf, observables.Sigmax(10,1), opname='transverse polarization')
     s.run(nruns)
-    sx2.append(40*s.estav)
-    err = distances.get_rdist(wf,nruns,h)/distances.get_ddist(wf,h,.01,nruns)
+    sx2.append(10*s.estav)
+    err = distances.get_rdist(wf,nruns,h)#/distances.get_ddist(wf,h,.01,nruns)
     loc2err.append(err)
 
 print("time elapsed: {:.2f}s".format(time.time() - start_time))

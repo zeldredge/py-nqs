@@ -18,7 +18,7 @@ class Sampler:
         self.accepted = 0
         self.state = np.ones(self.nspins)
         self.out = None  # eventually, file object
-        self.nflips = 0
+        self.nflips = op.minflips
         self.quiet = quiet
         self.opname = opname
         self.mag0 = mag0

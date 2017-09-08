@@ -9,12 +9,12 @@ import matplotlib.pyplot as plt
 import time
 
 start = time.time()
-nruns = 100
-k = 1
+nruns = 1000
+k = 2
 gam = .01
 nspins = 10
-h = heisenberg1d.Heisenberg1d(nspins,1)
-#h = ising1d.Ising1d(40,0.5)
+#h = heisenberg1d.Heisenberg1d(nspins,1)
+h = ising1d.Ising1d(10,0.5)
 #h = fermionhop1d.FermionHop(nspins,1)
 
 wf = nqs.NqsLocal(nspins, 1, k)  # A local NQS instance
@@ -40,7 +40,7 @@ def gamma_fun(p):
 
 t = trainer.TrainerLocal(h, cores=4)
 
-wf, elist = t.train(wf,state,nruns,101,gamma_fun, file='../Outputs/Ising1d05', out_freq=0)
+wf, elist = t.train(wf,state,nruns,201,gamma_fun, file='../Outputs/10_Ising05_2loc_', out_freq=25)
 
 s = sampler.Sampler(wf, h)
 s.run(nruns)
