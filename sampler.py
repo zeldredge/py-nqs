@@ -92,7 +92,7 @@ class Sampler:
     # Sweepfactor = number of single flips per sweep
     # nflipss = number of flips to make per move, automatically 1 or 2 depending on Hamiltonian if the input is -1
 
-    def run(self, nsweeps, thermfactor=.1, sweepfactor=1, nflipss=-1, init_state=None):
+    def run(self, nsweeps, thermfactor=.1, sweepfactor=1, nflipss=-1, init_state=np.array([])):
         self.nflips = nflipss
         if self.nflips == -1:  # Fix the number of flips
             self.nflips = self.operator.minflips
@@ -110,7 +110,7 @@ class Sampler:
         if not self.quiet:
             print("Starting Monte Carlo sampling, nsweeps = {}".format(nsweeps))
 
-        if init_state == None:
+        if init_state.size == 0:
             self.init_random_state()  # Get the random state
         else:
             self.state = init_state
