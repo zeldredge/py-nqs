@@ -279,6 +279,15 @@ class NqsLocal(Nqs):
 
         self.state = state
 
+    def log_val(self, state):  # computes the logarithm of the wavefunction in a particular state
+
+        rbm = np.dot(self.a, state)
+
+        for v in range(self.nv):
+             rbm += np.log(np.cosh(self.b[v] + np.dot(self.W[v], state[(self.indices + v) % self.nv])))
+
+        return rbm
+
     def update_lt(self, state, flips):
         for f in flips:
             for i in self.indices:
